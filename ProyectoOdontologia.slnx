@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/CapaAplicacion/">
+    <Project Path="CapaAplicacion/ProyectoOdontologia.Application.csproj" />
+  </Folder>
+  <Folder Name="/CapaDominio/">
+    <Project Path="CapaDominio/ProyectoOdontologia.Domain.csproj" />
+  </Folder>
+  <Folder Name="/CapaInfraestructura/">
+    <Project Path="CapaInfraestructura/ProyectoOdontologia.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/CapaWebApi/">
+    <Project Path="CapaWebApi/ProyectoOdontologia.API.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clínica Dental Pro - Panel de Administración</title>
+    <style>
+      :root {
+        --bg-main: #0b0f19;
+        --bg-card: #111827;
+        --bg-input: #1f2937;
+        --text-main: #f3f4f6;
+        --text-muted: #9ca3af;
+        --accent: #06b6d4;
+        --accent-hover: #0891b2;
+        --success: #10b981;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Segoe UI", system-ui, sans-serif;
+      }
+      body {
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* Sidebar Lateral */
+      aside {
+        width: 280px;
+        background-color: var(--bg-card);
+        border-right: 1px solid #232d3f;
+        padding: 2rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+      }
+      .logo {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .menu-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .menu-item {
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        color: var(--text-muted);
+        transition: all 0.2s ease;
+        font-weight: 500;
+      }
+      .menu-item:hover,
+      .menu-item.active {
+        background-color: var(--bg-input);
+        color: var(--text-main);
+      }
+      .menu-item.active {
+        border-left: 4px solid var(--accent);
+        color: var(--accent);
+      }
+
+      /* Contenedor Principal */
+      main {
+        flex: 1;
+        padding: 2.5rem;
+        overflow-y: auto;
+      }
+      .view-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+      }
+
+      /* Sistema de Alertas Flotantes */
+      #toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        z-index: 1000;
+        display: none;
+        animation: slideIn 0.3s ease;
+      }
+
+      /* Formulario Estilizado */
+      .crud-grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 2rem;
+        align-items: start;
+      }
+      .card-panel {
+        background-color: var(--bg-card);
+        padding: 2rem;
+        border-radius: 12px;
+        border: 1px solid #232d3f;
+      }
+      .panel-title {
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .form-group {
+        margin-bottom: 1.25rem;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--text-muted);
+      }
+      .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        background-color: var(--bg-input);
+        border: 1px solid #374151;
+        border-radius: 8px;
+        color: white;
+        transition: border 0.2s;
+      }
+      .form-control:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      /* Botones Profesionales */
+      .btn {
+        width: 100%;
+        padding: 0.75rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.2s;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .btn-primary {
+        background-color: var(--accent);
+        color: var(--bg-main);
+      }
+      .btn-primary:hover {
+        background-color: var(--accent-hover);
+      }
+      .btn-secondary {
+        background-color: #374151;
+        color: white;
+        margin-top: 0.5rem;
+      }
+      .btn-action {
+        width: auto;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+      }
+
+      /* Listado de Tarjetas */
+      .items-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+      }
+      .item-card {
+        background-color: var(--bg-card);
+        border: 1px solid #232d3f;
+        padding: 1.5rem;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      .item-details h4 {
+        font-size: 1.1rem;
+        margin-bottom: 0.25rem;
+      }
+      .item-details p {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 0.25rem;
+      }
+      .card-actions {
+        display: flex;
+        gap: 0.5rem;
+        border-top: 1px solid #232d3f;
+        padding-top: 0.75rem;
+      }
+
+      /* Estados de carga y vacíos */
+      .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-muted);
+        grid-column: 1 / -1;
+      }
+
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="toast"></div>
+
+    <aside>
+      <div class="logo">🦷 Clínica Pro</div>
+      <ul class="menu-list">
+        <li class="menu-item active" onclick="switchEntity('Paciente', event)">
+          Pacientes
+        </li>
+        <li
+          class="menu-item"
+          onclick="switchEntity('OdontologoControllers', event)"
+        >
+          Odontólogos
+        </li>
+        <li
+          class="menu-item"
+          onclick="switchEntity('TurnosControllers', event)"
+        >
+          Turnos
+        </li>
+        <li
+          class="menu-item"
+          onclick="switchEntity('TratamientoControllers', event)"
+        >
+          Tratamientos
+        </li>
+        <li
+          class="menu-item"
+          onclick="switchEntity('InsumosControllers', event)"
+        >
+          Insumos
+        </li>
+      </ul>
+    </aside>
+
+    <main>
+      <div class="view-header">
+        <h1 id="viewTitle">Gestión de Pacientes</h1>
+      </div>
+
+      <div class="crud-grid">
+        <div class="card-panel">
+          <div class="panel-title" id="formTitle">Registrar Nuevo</div>
+          <form id="dynamicForm" onsubmit="handleSubmit(event)">
+            <div id="formFields"></div>
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+              Guardar Registro
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="cancelBtn"
+              style="display: none"
+              onclick="resetForm()"
+            >
+              Cancelar Edición
+            </button>
+          </form>
+        </div>
+
+        <div class="card-panel">
+          <div class="panel-title">Registros en Sistema Backend</div>
+          <div id="itemsGrid" class="items-container"></div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const API_URL = "http://localhost:5231/api";
+
+      const schemas = {
+        Paciente: {
+          endpoint: "Paciente",
+          fields: [
+            { name: "nombre", label: "Nombre", type: "text", required: true },
+            {
+              name: "apellido",
+              label: "Apellido",
+              type: "text",
+              required: true,
+            },
+            {
+              name: "fechaNacimiento",
+              label: "Fecha de Nacimiento",
+              type: "date",
+              required: true,
+            },
+            {
+              name: "telefono",
+              label: "Teléfono",
+              type: "tel",
+              required: true,
+            },
+            {
+              name: "email",
+              label: "Correo Electrónico",
+              type: "email",
+              required: true,
+            },
+          ],
+        },
+        OdontologoControllers: {
+          endpoint: "OdontologoControllers",
+          fields: [
+            {
+              name: "nombre",
+              label: "Nombre Completo",
+              type: "text",
+              required: true,
+            },
+            {
+              name: "matricula",
+              label: "Matrícula",
+              type: "text",
+              required: true,
+            },
+            {
+              name: "especialidad",
+              label: "Especialidad",
+              type: "text",
+              required: true,
+            },
+            {
+              name: "telefono",
+              label: "Teléfono",
+              type: "number",
+              required: true,
+            },
+          ],
+        },
+        TurnosControllers: {
+          endpoint: "TurnosControllers",
+          fields: [
+            {
+              name: "fechaHora",
+              label: "Fecha y Hora",
+              type: "datetime-local",
+              required: true,
+            },
+            {
+              name: "pacienteId",
+              label: "ID Paciente (Nº)",
+              type: "number",
+              required: true,
+            },
+            {
+              name: "odontologoId",
+              label: "ID Odontólogo (Nº)",
+              type: "number",
+              required: true,
+            },
+            {
+              name: "tratamientoId",
+              label: "ID Tratamiento (Nº)",
+              type: "number",
+              required: true,
+            },
+          ],
+        },
+        TratamientoControllers: {
+          endpoint: "TratamientoControllers",
+          fields: [
+            {
+              name: "descripcion",
+              label: "Descripción",
+              type: "text",
+              required: true,
+            },
+            {
+              name: "costo",
+              label: "Costo ($)",
+              type: "number",
+              required: true,
+            },
+          ],
+        },
+        InsumosControllers: {
+          endpoint: "InsumosControllers",
+          fields: [
+            {
+              name: "nombre",
+              label: "Nombre del Insumo",
+              type: "text",
+              required: true,
+            },
+            {
+              name: "stock",
+              label: "Stock Disponible",
+              type: "number",
+              required: true,
+            },
+            {
+              name: "puntoPedido",
+              label: "Punto de Pedido",
+              type: "number",
+              required: true,
+            },
+          ],
+        },
+      };
+
+      let currentEntity = "Paciente";
+      let editingId = null;
+      let currentDataList = []; // Memoria local para evitar serializaciones rotas en el HTML
+
+      function switchEntity(entityKey, event) {
+        currentEntity = entityKey;
+        editingId = null;
+
+        document
+          .querySelectorAll(".menu-item")
+          .forEach((item) => item.classList.remove("active"));
+
+        if (event && event.target) {
+          event.target.classList.add("active");
+          document.getElementById("viewTitle").innerText =
+            `Gestión de ${event.target.innerText}`;
+        }
+
+        resetForm();
+        loadData();
+      }
+
+      function renderFormFields() {
+        const fieldsContainer = document.getElementById("formFields");
+        const schema = schemas[currentEntity];
+
+        fieldsContainer.innerHTML = schema.fields
+          .map(
+            (field) => `
+                <div class="form-group">
+                    <label>${field.label}</label>
+                    <input type="${field.type}" id="field-${field.name}" class="form-control" ${field.required ? "required" : ""}>
+                </div>
+            `,
+          )
+          .join("");
+      }
+
+      async function makeRequest(endpoint, method = "GET", body = null) {
+        try {
+          const config = {
+            method,
+            headers: { "Content-Type": "application/json" },
+          };
+          if (body) config.body = JSON.stringify(body);
+
+          const response = await fetch(`${API_URL}/${endpoint}`, config);
+
+          if (!response.ok) {
+            throw new Error(`Error de servidor: Código ${response.status}`);
+          }
+
+          // Las peticiones PUT/DELETE en .NET a veces devuelven 204 No Content (sin JSON)
+          if (response.status === 204) return true;
+          if (method === "GET") return await response.json();
+          return true;
+        } catch (error) {
+          showToast(error.message, "danger");
+          return null;
+        }
+      }
+
+      async function loadData() {
+        renderFormFields();
+        const grid = document.getElementById("itemsGrid");
+        grid.innerHTML =
+          '<div class="empty-state">Conectando con la API...</div>';
+
+        const endpoint = schemas[currentEntity].endpoint;
+        const data = await makeRequest(endpoint);
+        currentDataList = data || []; // Guardamos en memoria local
+
+        if (!data || data.length === 0) {
+          grid.innerHTML = `
+          <div class="empty-state">
+              <p style="font-size: 1.5rem; margin-bottom: 0.5rem;">📭 Lista Vacía</p>
+              <p style="font-size: 0.9rem;">No hay registros en la memoria. Utiliza el formulario de la izquierda para agregar el primero.</p>
+          </div>`;
+          return;
+        }
+
+        grid.innerHTML = data
+          .map((item) => {
+            const keys = Object.keys(item);
+            const getVal = (name) => {
+              const foundKey = keys.find(
+                (k) => k.toLowerCase() === name.toLowerCase(),
+              );
+              return foundKey ? item[foundKey] : "N/A";
+            };
+
+            const idKey = keys.find((k) => k.toLowerCase() === "id");
+            const itemId = String(item[idKey]);
+
+            const infoHtml = schemas[currentEntity].fields
+              .map(
+                (f) => `<p><strong>${f.label}:</strong> ${getVal(f.name)}</p>`,
+              )
+              .join("");
+
+            // Modificado: Ahora enviamos el itemId y lo buscamos en el array local en vez de serializar el objeto entero
+            return `
+              <div class="item-card">
+                  <div class="item-details">
+                      <h4 style="color: var(--accent); font-size: 0.85rem; word-break: break-all;">ID: ${itemId}</h4>
+                      <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;">
+                          ${infoHtml}
+                      </div>
+                  </div>
+                  <div class="card-actions">
+                      <button class="btn btn-primary btn-action" onclick="startEdit('${itemId}')">✏️ Editar</button>
+                      <button class="btn btn-action" style="background-color: var(--danger); color: white;" onclick="deleteItem('${itemId}')">🗑️ Borrar</button>
+                  </div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      async function handleSubmit(event) {
+        event.preventDefault();
+        const schema = schemas[currentEntity];
+        const payload = {};
+
+        // Si estamos editando, incluimos el ID numérico o de texto en el payload para el modelo de C#
+        if (editingId) {
+          payload.id = isNaN(editingId) ? editingId : Number(editingId);
+        }
+
+        schema.fields.forEach((field) => {
+          const element = document.getElementById(`field-${field.name}`);
+          payload[field.name] =
+            element.type === "number" ? Number(element.value) : element.value;
+        });
+
+        let success;
+        if (editingId) {
+          success = await makeRequest(
+            `${schema.endpoint}/${editingId}`,
+            "PUT",
+            payload,
+          );
+          if (success) showToast("Registro modificado con éxito", "success");
+        } else {
+          success = await makeRequest(schema.endpoint, "POST", payload);
+          if (success) showToast("Registro creado con éxito", "success");
+        }
+
+        if (success) {
+          resetForm();
+          loadData();
+        }
+      }
+
+      function startEdit(id) {
+        editingId = id;
+
+        // Encontrar el elemento desde la memoria local
+        const item = currentDataList.find((x) => {
+          const keys = Object.keys(x);
+          const idKey = keys.find((k) => k.toLowerCase() === "id");
+          return String(x[idKey]) === String(id);
+        });
+
+        if (!item) return;
+
+        document.getElementById("formTitle").innerText =
+          `Modificando Registro #${id}`;
+        document.getElementById("submitBtn").innerText = "Actualizar Cambios";
+        document.getElementById("cancelBtn").style.display = "block";
+
+        const keys = Object.keys(item);
+        schemas[currentEntity].fields.forEach((field) => {
+          const backendKey = keys.find(
+            (k) => k.toLowerCase() === field.name.toLowerCase(),
+          );
+          let value =
+            item[backendKey] !== undefined && item[backendKey] !== null
+              ? item[backendKey]
+              : "";
+
+          if (field.type === "date" && value) {
+            value = value.split("T")[0];
+          }
+
+          const element = document.getElementById(`field-${field.name}`);
+          if (element) element.value = value;
+        });
+      }
+
+      async function deleteItem(id) {
+        if (
+          confirm(`¿Estás completamente seguro de eliminar el registro #${id}?`)
+        ) {
+          const endpoint = `${schemas[currentEntity].endpoint}/${id}`;
+          const success = await makeRequest(endpoint, "DELETE");
+          if (success) {
+            showToast("Registro eliminado del sistema", "warning");
+            loadData();
+          }
+        }
+      }
+
+      function resetForm() {
+        editingId = null;
+        document.getElementById("dynamicForm").reset();
+        document.getElementById("formTitle").innerText = "Registrar Nuevo";
+        document.getElementById("submitBtn").innerText = "Guardar Registro";
+        document.getElementById("cancelBtn").style.display = "none";
+      }
+
+      function showToast(text, type) {
+        const toast = document.getElementById("toast");
+        toast.innerText = text;
+        toast.style.backgroundColor = `var(--${type})`;
+        toast.style.color = type === "success" ? "#000" : "#fff";
+        toast.style.display = "block";
+        setTimeout(() => {
+          toast.style.display = "none";
+        }, 3500);
+      }
+
+      // Inicialización automática
+      renderFormFields();
+      loadData();
+    </script>
+  </body>
+</html>
