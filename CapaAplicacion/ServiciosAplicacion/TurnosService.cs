@@ -165,6 +165,45 @@ public class TurnosService : ITurnosService
         return huecosEncontrados;
     }
 
+public IntervaloDeTiempo SeleccionarMejorHuecoBestFit(
+    List<IntervaloDeTiempo> huecos, 
+    TimeSpan duracionRequerida)
+{
+    IntervaloDeTiempo mejorHueco = null;
+    TimeSpan menorResiduo = TimeSpan.MaxValue;
+
+    for (int i = 0; i < huecos.Count; i++)
+    {
+        TimeSpan residuo = huecos[i].Duracion - duracionRequerida;
+
+        if (residuo < TimeSpan.Zero)
+            continue;
+
+        if (residuo == TimeSpan.Zero)
+        {
+            return new IntervaloDeTiempo(
+                huecos[i].Inicio, 
+                huecos[i].Inicio.Add(duracionRequerida));
+        }
+
+        if (residuo < menorResiduo)
+        {
+            menorResiduo = residuo;
+            mejorHueco = huecos[i];
+        }
+    }
+
+    if (mejorHueco != null)
+    {
+        return new IntervaloDeTiempo(
+            mejorHueco.Inicio, 
+            mejorHueco.Inicio.Add(duracionRequerida));
+    }
+
+    return null;
+}
+
+
     public async Task<int> autoincremental()
     {
         var lista = await _repositorioTurnos.ObtenerTodos();
