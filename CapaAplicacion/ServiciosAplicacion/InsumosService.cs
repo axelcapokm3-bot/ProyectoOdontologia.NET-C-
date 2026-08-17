@@ -3,7 +3,7 @@ namespace ProyectoOdontologia.CapaAplicacion.ServiciosAplicacion;
 using global::CapaAplicacion.Interfaces;
 using global::ProyectoOdontologia.CapaAplicacion.DtosInput;
 using global::ProyectoOdontologia.CapaAplicacion.DtosOutput;
-using global::CapaDominio.Entidades;
+using CapaDominio.Entidades;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
@@ -17,88 +17,104 @@ public class InsumosService : IInsumosService
         _repositorioInsumos = repositorioInsumos;
     }
 
-    public Task RegistrarInsumoAsync(InsumoDtosInput insumo)
+    public async Task RegistrarInsumoAsync(InsumoDtosInput insumo)
     {
         if (!ValidadorNombre(insumo))
         {
             throw new ArgumentException("El nombre del insumo contiene caracteres no válidos o está vacío.");
         }
 
-        int nuevoId = autoincremental();
+        int nuevoId = await autoincremental();
 
         var nuevoInsumo = new Insumo(
             nuevoId,
             insumo.Nombre,
-            insumo.Stock,
-            insumo.PuntoPedido
+            insumo.Categoria,
+            insumo.Stock
         );
 
-        _repositorioInsumos.AgregarInsumo(nuevoInsumo);
-
-        return Task.CompletedTask;
+        await _repositorioInsumos.AgregarInsumo(nuevoInsumo);
     }
 
-    public Task<IEnumerable<InsumoDtosOutput>> ObtenerTodosLosInsumosAsync()
+    public async Task<IEnumerable<InsumoDtosOutput>> ObtenerTodosLosInsumosAsync()
     {
-        var insumos = _repositorioInsumos.ObtenerTodos();
+        var insumos = await _repositorioInsumos.ObtenerTodos();
         var resultado = new List<InsumoDtosOutput>();
 
         foreach (var i in insumos)
         {
             var dto = new InsumoDtosOutput(
-                Guid.Parse(i.Id.ToString().PadLeft(32, '0')),
+                i.Id,
                 i.Nombre,
                 i.Stock,
+                i.StockReservado,
                 i.PuntoPedido
             );
             resultado.Add(dto);
         }
 
-        return Task.FromResult<IEnumerable<InsumoDtosOutput>>(resultado);
+        return resultado;
     }
 
-    public Task<InsumoDtosOutput?> ObtenerInsumoPorIdAsync(int id)
+    public async Task<InsumoDtosOutput?> ObtenerInsumoPorIdAsync(int id)
     {
-        var i = _repositorioInsumos.ObtenerInsumoPorId(id);
-        if (i == null) return Task.FromResult<InsumoDtosOutput?>(null);
+        var i = await _repositorioInsumos.ObtenerInsumoPorId(id);
+        if (i == null) return null;
 
         var dto = new InsumoDtosOutput(
-            Guid.Parse(i.Id.ToString().PadLeft(32, '0')),
+            i.Id,
             i.Nombre,
             i.Stock,
+            i.StockReservado,
             i.PuntoPedido
         );
 
-        return Task.FromResult<InsumoDtosOutput?>(dto);
+        return dto;
     }
 
-    public Task ActualizarInsumoAsync(int id, InsumoDtosInput insumoEditado)
+    public async Task<List<InsumoDtosOutput>> BuscarInsumosAsync(string criterio)
     {
-        var existe = _repositorioInsumos.ObtenerInsumoPorId(id);
-        if (existe == null) return Task.CompletedTask;
+        List<Insumo> insumos = await _repositorioInsumos.BuscarInsumos(criterio);
+        List<InsumoDtosOutput> resultado = new List<InsumoDtosOutput>();
+
+        foreach (Insumo i in insumos)
+        {
+            var dto = new InsumoDtosOutput(
+                i.Id,
+                i.Nombre,
+                i.Stock,
+                i.StockReservado,
+                i.PuntoPedido
+            );
+            resultado.Add(dto);
+        }
+
+        return resultado;
+    }
+
+    public async Task ActualizarInsumoAsync(int id, InsumoDtosInput insumoEditado)
+    {
+        var existe = await _repositorioInsumos.ObtenerInsumoPorId(id);
+        if (existe == null) return;
 
         var insumoModificado = new Insumo(
             id,
             insumoEditado.Nombre,
-            insumoEditado.Stock,
-            insumoEditado.PuntoPedido
+            insumoEditado.Categoria,
+            insumoEditado.Stock
         );
 
-        _repositorioInsumos.ActualizarInsumo(insumoModificado);
-
-        return Task.CompletedTask;
+        await _repositorioInsumos.ActualizarInsumo(insumoModificado);
     }
 
-    public Task<bool> EliminarInsumoAsync(int id)
+    public async Task<bool> EliminarInsumoAsync(int id)
     {
-        var existe = _repositorioInsumos.ObtenerInsumoPorId(id);
-        if (existe == null) return Task.FromResult(false);
+        var existe = await _repositorioInsumos.ObtenerInsumoPorId(id);
+        if (existe == null) return false;
 
-        _repositorioInsumos.EliminarInsumo(id);
-        return Task.FromResult(true);
+        await _repositorioInsumos.EliminarInsumo(id);
+        return true;
     }
-
-    // --- Métodos auxiliares ---
 
     public bool ValidadorNombre(InsumoDtosInput insumo)
     {
@@ -114,9 +130,9 @@ public class InsumosService : IInsumosService
         return true;
     }
 
-    public int autoincremental()
+    public async Task<int> autoincremental()
     {
-        var lista = _repositorioInsumos.ObtenerTodos();
+        var lista = await _repositorioInsumos.ObtenerTodos();
         int idMax = 0;
 
         foreach (var i in lista)

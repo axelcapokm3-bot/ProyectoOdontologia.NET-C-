@@ -2,21 +2,22 @@ namespace CapaAplicacion.Interfaces;
 
 using CapaDominio.Entidades;
 using System.Collections.Generic;
-
+using System.Threading.Tasks;
 public interface IRepositorioPaciente
 {
-    // Obtiene todos los pacientes de la lista en memoria
-    public List<Paciente> ObtenerTodos();
 
-    // Busca un paciente por su ID
-   public  Paciente? ObtenerPacientePorId(int id);
+  Task<IEnumerable<Paciente>> ObtenerTodos();
 
-    // Añade un nuevo paciente a la memoria
-   public  void AgregarPaciente(Paciente paciente);
+  //sobrecarga de metodo overloading
+  Task<List<Paciente>> BuscarPacientes(string criterio);
+  Task<Paciente?> ObtenerPacientePorId(int id);
 
-    // Actualiza los datos de un paciente existente
-  public   void ActualizarPaciente(Paciente paciente);
 
-    // Elimina un paciente de la memoria usando su ID
- public    void EliminarPaciente(int id);
+  Task AgregarPaciente(Paciente paciente);
+
+
+  Task ActualizarPaciente(Paciente paciente);
+
+
+  Task<bool> EliminarPaciente(int id);
 }

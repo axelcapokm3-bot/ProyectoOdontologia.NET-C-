@@ -5,18 +5,19 @@ using CapaDominio.Entidades;
 
 public interface IRepositorioInsumos
 {
-    // Obtiene todos los insumos de la lista en memoria
-    public List<Insumo> ObtenerTodos();
 
-    // Busca un insumo por su ID
-    Insumo? ObtenerInsumoPorId(int id);
+    Task<IEnumerable<Insumo>> ObtenerTodos();
 
-    // Añade un nuevo insumo a la memoria
-    void AgregarInsumo(Insumo insumo);
 
-    // Actualiza los datos de un insumo existente
-    void ActualizarInsumo(Insumo insumo);
+    Task<Insumo?> ObtenerInsumoPorId(int id);
 
-    // Elimina un insumo de la memoria usando su ID
-    void EliminarInsumo(int id);
+    Task<List<Insumo>> BuscarInsumos(string criterio);
+
+
+    Task AgregarInsumo(Insumo insumo);
+
+
+    Task ActualizarInsumo(Insumo insumo);
+
+    Task<bool> EliminarInsumo(int id);
 }

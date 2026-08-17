@@ -3,53 +3,42 @@ namespace CapaDominio.Entidades;
 
 public class Odontologo
 {
-    public int Id { get; set; }
+    public int Id { get; init; }
     public string Nombre { get; set; }
-
-    public string Matricula { get; set; }
-
+    public string Matricula { get; init; }
     public string Especialidad { get; set; }
-
     public int Telefono { get; set; }
-
-
 
     public Odontologo(int id, string nombre, string matricula, string especialidad, int telefono)
     {
-
-
-
-
-        this.Id = id;
-        this.Nombre = nombre;
-        this.Matricula = matricula;
-        this.Especialidad = especialidad;
-        this.Telefono = telefono;
-        if (id <= 0 || id == null)
+        if (id <= 0  || id.Equals(null))
         {
-            throw new ArgumentException("El ID debe ser un número positivo");
-
+            throw new ArgumentException("El ID debe ser mayor a cero.");
         }
-        if (nombre == null || nombre.IsWhiteSpace())
+        if (string.IsNullOrWhiteSpace(nombre))
         {
-            throw new ArgumentException("El nombre  esta vacio ");
+            throw new ArgumentException("El nombre es obligatorio.");
         }
-        if (matricula == null || matricula.IsWhiteSpace())
+        if (string.IsNullOrWhiteSpace(matricula))
         {
-            throw new ArgumentException("La matricula  esta vacio ");
+            throw new ArgumentException("La matrícula es obligatoria.");
         }
-        if (especialidad == null || especialidad.IsWhiteSpace())
+        if (string.IsNullOrWhiteSpace(especialidad))
         {
-            throw new ArgumentException("La especialidad  esta vacio ");
-        }
-        if (telefono <= 0 || telefono == null)
-        {
-            throw new ArgumentException("El telefono debe ser un número positivo");
-
+            throw new ArgumentException("La especialidad es obligatoria.");
         }
 
+        string telefonoTexto = telefono.ToString();
 
+        if (telefonoTexto.Length < 8 || telefonoTexto.Length > 10)
+        {
+            throw new ArgumentException("El teléfono es obligatorio.");
+        }
 
-
+        Id = id;
+        Nombre = nombre;
+        Matricula = matricula;
+        Especialidad = especialidad;
+        Telefono = telefono;
     }
 }

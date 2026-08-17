@@ -3,7 +3,8 @@ namespace ProyectoOdontologia.CapaAplicacion.DtosInput;
 
 
 public record TurnoDtoInput(
-    DateTime FechaHora,
+    DateTime FechaHoraInicio,
+    DateTime FechaHoraFin,
     int PacienteId,
     int OdontologoId,
     int TratamientoId

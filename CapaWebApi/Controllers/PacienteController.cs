@@ -17,13 +17,13 @@ namespace CapaWebApi.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<PacienteDtoOutput>>> ObtenerTodos()
+        public async Task<ActionResult<IEnumerable<PacienteDtoOutput>>> ObtenerTodos([FromQuery] string? texto = null)
         {
             var pacientes = await _pacienteService.ObtenerTodosLosPacientesAsync();
             return Ok(pacientes);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<ActionResult<PacienteDtoOutput>> ObtenerPorId(int id)
         {
             var paciente = await _pacienteService.ObtenerPacientePorIdAsync(id);
@@ -32,6 +32,13 @@ namespace CapaWebApi.Controllers
                 return NotFound();
             }
             return Ok(paciente);
+        }
+
+        [HttpGet("buscar")]
+        public async Task<ActionResult<List<PacienteDtoOutput>>> Buscar([FromQuery] string texto)
+        {
+            var resultados = await _pacienteService.BuscarPacientesAsync(texto);
+            return Ok(resultados);
         }
 
         [HttpPost]
@@ -46,7 +53,7 @@ namespace CapaWebApi.Controllers
             return StatusCode(201);
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:int}")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] PacienteDtoInput pacienteDtoInput)
         {
             if (pacienteDtoInput == null)
@@ -58,7 +65,7 @@ namespace CapaWebApi.Controllers
             return NoContent();
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:int}")]
         public async Task<IActionResult> Eliminar(int id)
         {
             var eliminado = await _pacienteService.EliminarPacienteAsync(id);

@@ -2,7 +2,7 @@ namespace ProyectoOdontologia.CapaAplicacion.DtosOutput;
 
 
 public record OdontologoOutputDto(
-    Guid Id,
+    int Id,
     string Nombre,
     string Matricula,
     string Especialidad,

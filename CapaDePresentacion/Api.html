@@ -3,656 +3,481 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Clínica Dental Pro - Panel de Administración</title>
-    <style>
-      :root {
-        --bg-main: #0b0f19;
-        --bg-card: #111827;
-        --bg-input: #1f2937;
-        --text-main: #f3f4f6;
-        --text-muted: #9ca3af;
-        --accent: #06b6d4;
-        --accent-hover: #0891b2;
-        --success: #10b981;
-        --danger: #ef4444;
-        --warning: #f59e0b;
-      }
-
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: "Segoe UI", system-ui, sans-serif;
-      }
-      body {
-        background-color: var(--bg-main);
-        color: var(--text-main);
-        display: flex;
-        min-height: 100vh;
-      }
-
-      /* Sidebar Lateral */
-      aside {
-        width: 280px;
-        background-color: var(--bg-card);
-        border-right: 1px solid #232d3f;
-        padding: 2rem 1.5rem;
-        display: flex;
-        flex-direction: column;
-        gap: 2rem;
-      }
-      .logo {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: var(--accent);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-      .menu-list {
-        list-style: none;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      .menu-item {
-        padding: 0.75rem 1rem;
-        border-radius: 8px;
-        cursor: pointer;
-        color: var(--text-muted);
-        transition: all 0.2s ease;
-        font-weight: 500;
-      }
-      .menu-item:hover,
-      .menu-item.active {
-        background-color: var(--bg-input);
-        color: var(--text-main);
-      }
-      .menu-item.active {
-        border-left: 4px solid var(--accent);
-        color: var(--accent);
-      }
-
-      /* Contenedor Principal */
-      main {
-        flex: 1;
-        padding: 2.5rem;
-        overflow-y: auto;
-      }
-      .view-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
-      }
-
-      /* Sistema de Alertas Flotantes */
-      #toast {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 1rem 1.5rem;
-        border-radius: 8px;
-        font-weight: 600;
-        z-index: 1000;
-        display: none;
-        animation: slideIn 0.3s ease;
-      }
-
-      /* Formulario Estilizado */
-      .crud-grid {
-        display: grid;
-        grid-template-columns: 1fr 2fr;
-        gap: 2rem;
-        align-items: start;
-      }
-      .card-panel {
-        background-color: var(--bg-card);
-        padding: 2rem;
-        border-radius: 12px;
-        border: 1px solid #232d3f;
-      }
-      .panel-title {
-        font-size: 1.2rem;
-        margin-bottom: 1.5rem;
-        color: var(--accent);
-        font-weight: 600;
-      }
-
-      .form-group {
-        margin-bottom: 1.25rem;
-      }
-      .form-group label {
-        display: block;
-        margin-bottom: 0.5rem;
-        font-size: 0.875rem;
-        color: var(--text-muted);
-      }
-      .form-control {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        background-color: var(--bg-input);
-        border: 1px solid #374151;
-        border-radius: 8px;
-        color: white;
-        transition: border 0.2s;
-      }
-      .form-control:focus {
-        outline: none;
-        border-color: var(--accent);
-      }
-
-      /* Botones Profesionales */
-      .btn {
-        width: 100%;
-        padding: 0.75rem;
-        border: none;
-        border-radius: 8px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: background 0.2s;
-        display: inline-flex;
-        justify-content: center;
-        align-items: center;
-        gap: 0.5rem;
-      }
-      .btn-primary {
-        background-color: var(--accent);
-        color: var(--bg-main);
-      }
-      .btn-primary:hover {
-        background-color: var(--accent-hover);
-      }
-      .btn-secondary {
-        background-color: #374151;
-        color: white;
-        margin-top: 0.5rem;
-      }
-      .btn-action {
-        width: auto;
-        padding: 0.4rem 0.75rem;
-        font-size: 0.85rem;
-      }
-
-      /* Listado de Tarjetas */
-      .items-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 1rem;
-      }
-      .item-card {
-        background-color: var(--bg-card);
-        border: 1px solid #232d3f;
-        padding: 1.5rem;
-        border-radius: 12px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        gap: 1rem;
-      }
-      .item-details h4 {
-        font-size: 1.1rem;
-        margin-bottom: 0.25rem;
-      }
-      .item-details p {
-        font-size: 0.85rem;
-        color: var(--text-muted);
-        margin-bottom: 0.25rem;
-      }
-      .card-actions {
-        display: flex;
-        gap: 0.5rem;
-        border-top: 1px solid #232d3f;
-        padding-top: 0.75rem;
-      }
-
-      /* Estados de carga y vacíos */
-      .empty-state {
-        text-align: center;
-        padding: 3rem;
-        color: var(--text-muted);
-        grid-column: 1 / -1;
-      }
-
-      @keyframes slideIn {
-        from {
-          transform: translateX(100%);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
-      }
-    </style>
+    <title>Sistema Odontología</title>
+    <link rel="stylesheet" href="assets/css/styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
-    <div id="toast"></div>
-
+    <!-- Sidebar -->
     <aside>
-      <div class="logo">🦷 Clínica Pro</div>
-      <ul class="menu-list">
-        <li class="menu-item active" onclick="switchEntity('Paciente', event)">
+      <div class="sidebar-brand">
+        <div class="brand-logo">
+          <span class="material-symbols-outlined">medical_services</span>
+        </div>
+        <div class="brand-text">
+          <strong>OdontoClínica</strong>
+          <span>Panel de administración</span>
+        </div>
+      </div>
+
+      <nav id="entityNav">
+        <button class="nav-link active" data-seccion="dashboard">
+          <span class="material-symbols-outlined">space_dashboard</span>
+          Dashboard
+        </button>
+        <button class="nav-link" data-seccion="pacientes">
+          <span class="material-symbols-outlined">groups</span>
           Pacientes
-        </li>
-        <li
-          class="menu-item"
-          onclick="switchEntity('OdontologoControllers', event)"
-        >
+        </button>
+        <button class="nav-link" data-seccion="odontologos">
+          <span class="material-symbols-outlined">stethoscope</span>
           Odontólogos
-        </li>
-        <li
-          class="menu-item"
-          onclick="switchEntity('TurnosControllers', event)"
-        >
-          Turnos
-        </li>
-        <li
-          class="menu-item"
-          onclick="switchEntity('TratamientoControllers', event)"
-        >
+        </button>
+        <button class="nav-link" data-seccion="tratamientos">
+          <span class="material-symbols-outlined">healing</span>
           Tratamientos
-        </li>
-        <li
-          class="menu-item"
-          onclick="switchEntity('InsumosControllers', event)"
-        >
+        </button>
+        <button class="nav-link" data-seccion="turnos">
+          <span class="material-symbols-outlined">event</span>
+          Turnos
+        </button>
+        <button class="nav-link" data-seccion="insumos">
+          <span class="material-symbols-outlined">inventory_2</span>
           Insumos
-        </li>
-      </ul>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="api-status">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">API sin conexión</span>
+        </div>
+        <button class="text-button" id="settingsButton" type="button">
+          <span class="material-symbols-outlined" style="font-size: 16px">settings</span>
+          Configurar API
+        </button>
+      </div>
     </aside>
 
-    <main>
-      <div class="view-header">
-        <h1 id="viewTitle">Gestión de Pacientes</h1>
-      </div>
-
-      <div class="crud-grid">
-        <div class="card-panel">
-          <div class="panel-title" id="formTitle">Registrar Nuevo</div>
-          <form id="dynamicForm" onsubmit="handleSubmit(event)">
-            <div id="formFields"></div>
-            <button type="submit" class="btn btn-primary" id="submitBtn">
-              Guardar Registro
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              id="cancelBtn"
-              style="display: none"
-              onclick="resetForm()"
-            >
-              Cancelar Edición
-            </button>
-          </form>
+    <!-- Área Principal -->
+    <main id="mainContent">
+      <!-- Sección Dashboard -->
+      <section id="sec-dashboard" class="seccion-modulo">
+        <div class="modulo-header">
+          <div class="modulo-title">
+            <h2>Resumen de la Clínica</h2>
+            <p class="text-muted">Estado actual de la clínica según los datos registrados.</p>
+          </div>
         </div>
 
-        <div class="card-panel">
-          <div class="panel-title">Registros en Sistema Backend</div>
-          <div id="itemsGrid" class="items-container"></div>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Pacientes Totales</span>
+              <span class="material-symbols-outlined text-muted">groups</span>
+            </div>
+            <div class="metric-value text-primary" id="metric-pacientes">0</div>
+            <div class="metric-trend text-muted">
+              <span>Pacientes registrados</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Citas Hoy</span>
+              <span class="material-symbols-outlined text-muted">event</span>
+            </div>
+            <div class="metric-value" id="metric-citas-hoy">0</div>
+            <div class="metric-trend text-muted">
+              <span id="metric-citas-sub">Turnos para hoy</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Insumos Críticos</span>
+              <span class="material-symbols-outlined text-muted">warning</span>
+            </div>
+            <div class="metric-value text-danger" id="metric-insumos">0</div>
+            <div class="metric-trend text-danger">
+              <span>Requieren reposición</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Ingresos (Mes)</span>
+              <span class="material-symbols-outlined text-muted">payments</span>
+            </div>
+            <div class="metric-value" id="metric-ingresos">$0</div>
+            <div class="metric-trend text-muted">
+              <span id="metric-ingresos-sub">Estimado del mes por tratamientos</span>
+            </div>
+          </div>
         </div>
-      </div>
+
+        <div class="table-container">
+          <div class="table-header-custom">
+            <h3>Próximos Turnos</h3>
+            <button class="button button-primary" id="btnNuevaCita" type="button">
+              <span class="material-symbols-outlined" style="font-size: 18px">add</span>
+              Nuevo Turno
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Paciente</th>
+                  <th>Odontólogo</th>
+                  <th>Tratamiento</th>
+                  <th>Fecha y Hora</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-proximas-citas"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sección Pacientes -->
+      <section id="sec-pacientes" class="seccion-modulo hidden">
+        <div class="modulo-header">
+          <div class="modulo-title">
+            <h2>Pacientes</h2>
+            <p class="text-muted">Gestión y directorio de registros médicos.</p>
+          </div>
+          <div class="modulo-actions">
+            <div class="search-box">
+              <span class="material-symbols-outlined">search</span>
+              <input type="text" id="search-pacientes" placeholder="Buscar paciente..." />
+            </div>
+            <button class="button button-primary" id="btnNuevoPaciente" type="button">
+              <span class="material-symbols-outlined" style="font-size: 18px">add</span>
+              Nuevo Paciente
+            </button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre Completo</th>
+                  <th class="hide-sm">Correo Electrónico</th>
+                  <th class="hide-md">Teléfono</th>
+                  <th class="hide-md">Fecha de Nacimiento</th>
+                  <th class="text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-pacientes"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span class="pagination-info" id="summary-pacientes"></span>
+            <div class="pagination-actions">
+              <button class="pagination-button" type="button" data-nav="pacientes:prev">
+                <span class="material-symbols-outlined" style="font-size: 18px">chevron_left</span>
+              </button>
+              <button class="pagination-button" type="button" data-nav="pacientes:next">
+                <span class="material-symbols-outlined" style="font-size: 18px">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sección Odontólogos -->
+      <section id="sec-odontologos" class="seccion-modulo hidden">
+        <div class="modulo-header">
+          <div class="modulo-title">
+            <h2>Odontólogos</h2>
+            <p class="text-muted">Profesionales registrados en la clínica.</p>
+          </div>
+          <div class="modulo-actions">
+            <div class="search-box">
+              <span class="material-symbols-outlined">search</span>
+              <input type="text" id="search-odontologos" placeholder="Buscar odontólogo..." />
+            </div>
+            <button class="button button-primary" id="btnNuevoOdontologo" type="button">
+              <span class="material-symbols-outlined" style="font-size: 18px">add</span>
+              Nuevo Odontólogo
+            </button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre Completo</th>
+                  <th class="hide-sm">Matrícula</th>
+                  <th>Especialidad</th>
+                  <th class="hide-md">Teléfono</th>
+                  <th class="text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-odontologos"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span class="pagination-info" id="summary-odontologos"></span>
+            <div class="pagination-actions">
+              <button class="pagination-button" type="button" data-nav="odontologos:prev">
+                <span class="material-symbols-outlined" style="font-size: 18px">chevron_left</span>
+              </button>
+              <button class="pagination-button" type="button" data-nav="odontologos:next">
+                <span class="material-symbols-outlined" style="font-size: 18px">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sección Tratamientos -->
+      <section id="sec-tratamientos" class="seccion-modulo hidden">
+        <div class="modulo-header">
+          <div class="modulo-title">
+            <h2>Tratamientos</h2>
+            <p class="text-muted">Gestión y catálogo de procedimientos clínicos.</p>
+          </div>
+          <div class="modulo-actions">
+            <div class="search-box">
+              <span class="material-symbols-outlined">search</span>
+              <input type="text" id="search-tratamientos" placeholder="Buscar tratamiento..." />
+            </div>
+            <button class="button button-primary" id="btnNuevoTratamiento" type="button">
+              <span class="material-symbols-outlined" style="font-size: 18px">add</span>
+              Nuevo Tratamiento
+            </button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Descripción</th>
+                  <th class="hide-md">Insumos Requeridos</th>
+                  <th class="text-right">Costo</th>
+                  <th class="text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-tratamientos"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span class="pagination-info" id="summary-tratamientos"></span>
+            <div class="pagination-actions">
+              <button class="pagination-button" type="button" data-nav="tratamientos:prev">
+                <span class="material-symbols-outlined" style="font-size: 18px">chevron_left</span>
+              </button>
+              <button class="pagination-button" type="button" data-nav="tratamientos:next">
+                <span class="material-symbols-outlined" style="font-size: 18px">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sección Turnos -->
+      <section id="sec-turnos" class="seccion-modulo hidden">
+        <div class="modulo-header">
+          <div class="modulo-title">
+            <h2>Turnos</h2>
+            <p class="text-muted">Agenda de turnos registrados en la clínica.</p>
+          </div>
+          <div class="modulo-actions">
+            <button class="button button-primary" id="btnNuevoTurno" type="button">
+              <span class="material-symbols-outlined" style="font-size: 18px">add</span>
+              Nuevo Turno
+            </button>
+          </div>
+        </div>
+
+        <div class="filters-bar">
+          <div class="filter-group">
+            <label for="filter-date" class="filter-label">Fecha</label>
+            <input type="date" id="filter-date" class="form-input" />
+          </div>
+          <div class="filter-group">
+            <label for="filter-doctor" class="filter-label">Odontólogo</label>
+            <select id="filter-doctor" class="form-select">
+              <option value="all">Todos los profesionales</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <div class="search-box">
+              <span class="material-symbols-outlined">search</span>
+              <input type="text" id="search-turnos" placeholder="Buscar turno..." />
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Fecha y Hora</th>
+                  <th>Paciente</th>
+                  <th>Odontólogo</th>
+                  <th class="hide-md">Tratamiento</th>
+                  <th class="text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-turnos"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span class="pagination-info" id="summary-turnos"></span>
+            <div class="pagination-actions">
+              <button class="pagination-button" type="button" data-nav="turnos:prev">
+                <span class="material-symbols-outlined" style="font-size: 18px">chevron_left</span>
+              </button>
+              <button class="pagination-button" type="button" data-nav="turnos:next">
+                <span class="material-symbols-outlined" style="font-size: 18px">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sección Insumos -->
+      <section id="sec-insumos" class="seccion-modulo hidden">
+        <div class="modulo-header">
+          <div class="modulo-title">
+            <h2>Insumos</h2>
+            <p class="text-muted">Gestión de insumos médicos y materiales.</p>
+          </div>
+          <div class="modulo-actions">
+            <div class="search-box">
+              <span class="material-symbols-outlined">search</span>
+              <input type="text" id="search-insumos" placeholder="Buscar insumo..." />
+            </div>
+            <button class="button button-primary" id="btnNuevoInsumo" type="button">
+              <span class="material-symbols-outlined" style="font-size: 18px">add</span>
+              Nuevo Insumo
+            </button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Insumo</th>
+                  <th class="hide-sm">Categoría</th>
+                  <th class="text-right">Stock Disponible</th>
+                  <th class="text-right hide-md">Punto de Pedido</th>
+                  <th class="text-center">Estado</th>
+                  <th class="text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-insumos"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span class="pagination-info" id="summary-insumos"></span>
+            <div class="pagination-actions">
+              <button class="pagination-button" type="button" data-nav="insumos:prev">
+                <span class="material-symbols-outlined" style="font-size: 18px">chevron_left</span>
+              </button>
+              <button class="pagination-button" type="button" data-nav="insumos:next">
+                <span class="material-symbols-outlined" style="font-size: 18px">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
 
-    <script>
-      const API_URL = "http://localhost:5231/api";
+    <!-- Modal CRUD -->
+    <dialog id="recordDialog" class="modal-dialog">
+      <form id="recordForm" novalidate>
+        <div class="modal-header">
+          <div>
+            <h3 id="formTitle">Registrar</h3>
+            <p class="text-muted" id="formDescription"></p>
+          </div>
+          <button class="icon-button modal-close" id="modalCloseButton" type="button" aria-label="Cerrar">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
 
-      const schemas = {
-        Paciente: {
-          endpoint: "Paciente",
-          fields: [
-            { name: "nombre", label: "Nombre", type: "text", required: true },
-            {
-              name: "apellido",
-              label: "Apellido",
-              type: "text",
-              required: true,
-            },
-            {
-              name: "fechaNacimiento",
-              label: "Fecha de Nacimiento",
-              type: "date",
-              required: true,
-            },
-            {
-              name: "telefono",
-              label: "Teléfono",
-              type: "tel",
-              required: true,
-            },
-            {
-              name: "email",
-              label: "Correo Electrónico",
-              type: "email",
-              required: true,
-            },
-          ],
-        },
-        OdontologoControllers: {
-          endpoint: "OdontologoControllers",
-          fields: [
-            {
-              name: "nombre",
-              label: "Nombre Completo",
-              type: "text",
-              required: true,
-            },
-            {
-              name: "matricula",
-              label: "Matrícula",
-              type: "text",
-              required: true,
-            },
-            {
-              name: "especialidad",
-              label: "Especialidad",
-              type: "text",
-              required: true,
-            },
-            {
-              name: "telefono",
-              label: "Teléfono",
-              type: "number",
-              required: true,
-            },
-          ],
-        },
-        TurnosControllers: {
-          endpoint: "TurnosControllers",
-          fields: [
-            {
-              name: "fechaHora",
-              label: "Fecha y Hora",
-              type: "datetime-local",
-              required: true,
-            },
-            {
-              name: "pacienteId",
-              label: "ID Paciente (Nº)",
-              type: "number",
-              required: true,
-            },
-            {
-              name: "odontologoId",
-              label: "ID Odontólogo (Nº)",
-              type: "number",
-              required: true,
-            },
-            {
-              name: "tratamientoId",
-              label: "ID Tratamiento (Nº)",
-              type: "number",
-              required: true,
-            },
-          ],
-        },
-        TratamientoControllers: {
-          endpoint: "TratamientoControllers",
-          fields: [
-            {
-              name: "descripcion",
-              label: "Descripción",
-              type: "text",
-              required: true,
-            },
-            {
-              name: "costo",
-              label: "Costo ($)",
-              type: "number",
-              required: true,
-            },
-          ],
-        },
-        InsumosControllers: {
-          endpoint: "InsumosControllers",
-          fields: [
-            {
-              name: "nombre",
-              label: "Nombre del Insumo",
-              type: "text",
-              required: true,
-            },
-            {
-              name: "stock",
-              label: "Stock Disponible",
-              type: "number",
-              required: true,
-            },
-            {
-              name: "puntoPedido",
-              label: "Punto de Pedido",
-              type: "number",
-              required: true,
-            },
-          ],
-        },
-      };
+        <div class="modal-body">
+          <div class="form-grid" id="formFields"></div>
 
-      let currentEntity = "Paciente";
-      let editingId = null;
-      let currentDataList = []; // Memoria local para evitar serializaciones rotas en el HTML
+          <!-- Editor de insumos requeridos (Tratamientos) -->
+          <div class="ti-editor hidden" id="tiEditor">
+            <div class="ti-editor-title">
+              <h4>Insumos requeridos</h4>
+              <p class="text-muted">Insumos que consume este tratamiento.</p>
+            </div>
+            <div class="editor-add-row">
+              <select id="tiInsumo" class="form-select">
+                <option value="">Seleccionar insumo…</option>
+              </select>
+              <input type="number" id="tiCantidad" class="form-input" placeholder="Cantidad" min="1" step="1" />
+              <button class="button button-primary" id="tiAdd" type="button">
+                <span class="material-symbols-outlined" style="font-size: 18px">add</span>
+                Agregar
+              </button>
+            </div>
+            <ul class="ti-list" id="tiList"></ul>
+            <p class="ti-hint hidden" id="tiHint">
+              Un tratamiento editado debe incluir al menos un insumo.
+            </p>
+          </div>
+        </div>
 
-      function switchEntity(entityKey, event) {
-        currentEntity = entityKey;
-        editingId = null;
+        <div class="modal-footer">
+          <button class="button button-ghost" id="cancelButton" type="button">Cancelar</button>
+          <button class="button button-primary" id="submitButton" type="submit">Guardar</button>
+        </div>
+      </form>
+    </dialog>
 
-        document
-          .querySelectorAll(".menu-item")
-          .forEach((item) => item.classList.remove("active"));
+    <!-- Modal Configuración API -->
+    <dialog id="settingsDialog" class="modal-dialog">
+      <form id="settingsForm" class="modal-content" novalidate>
+        <div class="modal-header">
+          <div>
+            <h3>Configurar API</h3>
+            <p class="text-muted">URL base del backend.</p>
+          </div>
+          <button class="icon-button modal-close" id="settingsCloseButton" type="button" aria-label="Cerrar">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <label class="field-label">
+            URL base
+            <input type="url" id="apiUrl" class="form-input" required placeholder="http://localhost:5231/api" />
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="button button-ghost" id="settingsCancelButton" type="button">Cancelar</button>
+          <button class="button button-primary" type="submit">Guardar</button>
+        </div>
+      </form>
+    </dialog>
 
-        if (event && event.target) {
-          event.target.classList.add("active");
-          document.getElementById("viewTitle").innerText =
-            `Gestión de ${event.target.innerText}`;
-        }
+    <div id="toast" class="toast" role="status"></div>
 
-        resetForm();
-        loadData();
-      }
-
-      function renderFormFields() {
-        const fieldsContainer = document.getElementById("formFields");
-        const schema = schemas[currentEntity];
-
-        fieldsContainer.innerHTML = schema.fields
-          .map(
-            (field) => `
-                <div class="form-group">
-                    <label>${field.label}</label>
-                    <input type="${field.type}" id="field-${field.name}" class="form-control" ${field.required ? "required" : ""}>
-                </div>
-            `,
-          )
-          .join("");
-      }
-
-      async function makeRequest(endpoint, method = "GET", body = null) {
-        try {
-          const config = {
-            method,
-            headers: { "Content-Type": "application/json" },
-          };
-          if (body) config.body = JSON.stringify(body);
-
-          const response = await fetch(`${API_URL}/${endpoint}`, config);
-
-          if (!response.ok) {
-            throw new Error(`Error de servidor: Código ${response.status}`);
-          }
-
-          // Las peticiones PUT/DELETE en .NET a veces devuelven 204 No Content (sin JSON)
-          if (response.status === 204) return true;
-          if (method === "GET") return await response.json();
-          return true;
-        } catch (error) {
-          showToast(error.message, "danger");
-          return null;
-        }
-      }
-
-      async function loadData() {
-        renderFormFields();
-        const grid = document.getElementById("itemsGrid");
-        grid.innerHTML =
-          '<div class="empty-state">Conectando con la API...</div>';
-
-        const endpoint = schemas[currentEntity].endpoint;
-        const data = await makeRequest(endpoint);
-        currentDataList = data || []; // Guardamos en memoria local
-
-        if (!data || data.length === 0) {
-          grid.innerHTML = `
-          <div class="empty-state">
-              <p style="font-size: 1.5rem; margin-bottom: 0.5rem;">📭 Lista Vacía</p>
-              <p style="font-size: 0.9rem;">No hay registros en la memoria. Utiliza el formulario de la izquierda para agregar el primero.</p>
-          </div>`;
-          return;
-        }
-
-        grid.innerHTML = data
-          .map((item) => {
-            const keys = Object.keys(item);
-            const getVal = (name) => {
-              const foundKey = keys.find(
-                (k) => k.toLowerCase() === name.toLowerCase(),
-              );
-              return foundKey ? item[foundKey] : "N/A";
-            };
-
-            const idKey = keys.find((k) => k.toLowerCase() === "id");
-            const itemId = String(item[idKey]);
-
-            const infoHtml = schemas[currentEntity].fields
-              .map(
-                (f) => `<p><strong>${f.label}:</strong> ${getVal(f.name)}</p>`,
-              )
-              .join("");
-
-            // Modificado: Ahora enviamos el itemId y lo buscamos en el array local en vez de serializar el objeto entero
-            return `
-              <div class="item-card">
-                  <div class="item-details">
-                      <h4 style="color: var(--accent); font-size: 0.85rem; word-break: break-all;">ID: ${itemId}</h4>
-                      <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;">
-                          ${infoHtml}
-                      </div>
-                  </div>
-                  <div class="card-actions">
-                      <button class="btn btn-primary btn-action" onclick="startEdit('${itemId}')">✏️ Editar</button>
-                      <button class="btn btn-action" style="background-color: var(--danger); color: white;" onclick="deleteItem('${itemId}')">🗑️ Borrar</button>
-                  </div>
-              </div>
-            `;
-          })
-          .join("");
-      }
-
-      async function handleSubmit(event) {
-        event.preventDefault();
-        const schema = schemas[currentEntity];
-        const payload = {};
-
-        // Si estamos editando, incluimos el ID numérico o de texto en el payload para el modelo de C#
-        if (editingId) {
-          payload.id = isNaN(editingId) ? editingId : Number(editingId);
-        }
-
-        schema.fields.forEach((field) => {
-          const element = document.getElementById(`field-${field.name}`);
-          payload[field.name] =
-            element.type === "number" ? Number(element.value) : element.value;
-        });
-
-        let success;
-        if (editingId) {
-          success = await makeRequest(
-            `${schema.endpoint}/${editingId}`,
-            "PUT",
-            payload,
-          );
-          if (success) showToast("Registro modificado con éxito", "success");
-        } else {
-          success = await makeRequest(schema.endpoint, "POST", payload);
-          if (success) showToast("Registro creado con éxito", "success");
-        }
-
-        if (success) {
-          resetForm();
-          loadData();
-        }
-      }
-
-      function startEdit(id) {
-        editingId = id;
-
-        // Encontrar el elemento desde la memoria local
-        const item = currentDataList.find((x) => {
-          const keys = Object.keys(x);
-          const idKey = keys.find((k) => k.toLowerCase() === "id");
-          return String(x[idKey]) === String(id);
-        });
-
-        if (!item) return;
-
-        document.getElementById("formTitle").innerText =
-          `Modificando Registro #${id}`;
-        document.getElementById("submitBtn").innerText = "Actualizar Cambios";
-        document.getElementById("cancelBtn").style.display = "block";
-
-        const keys = Object.keys(item);
-        schemas[currentEntity].fields.forEach((field) => {
-          const backendKey = keys.find(
-            (k) => k.toLowerCase() === field.name.toLowerCase(),
-          );
-          let value =
-            item[backendKey] !== undefined && item[backendKey] !== null
-              ? item[backendKey]
-              : "";
-
-          if (field.type === "date" && value) {
-            value = value.split("T")[0];
-          }
-
-          const element = document.getElementById(`field-${field.name}`);
-          if (element) element.value = value;
-        });
-      }
-
-      async function deleteItem(id) {
-        if (
-          confirm(`¿Estás completamente seguro de eliminar el registro #${id}?`)
-        ) {
-          const endpoint = `${schemas[currentEntity].endpoint}/${id}`;
-          const success = await makeRequest(endpoint, "DELETE");
-          if (success) {
-            showToast("Registro eliminado del sistema", "warning");
-            loadData();
-          }
-        }
-      }
-
-      function resetForm() {
-        editingId = null;
-        document.getElementById("dynamicForm").reset();
-        document.getElementById("formTitle").innerText = "Registrar Nuevo";
-        document.getElementById("submitBtn").innerText = "Guardar Registro";
-        document.getElementById("cancelBtn").style.display = "none";
-      }
-
-      function showToast(text, type) {
-        const toast = document.getElementById("toast");
-        toast.innerText = text;
-        toast.style.backgroundColor = `var(--${type})`;
-        toast.style.color = type === "success" ? "#000" : "#fff";
-        toast.style.display = "block";
-        setTimeout(() => {
-          toast.style.display = "none";
-        }, 3500);
-      }
-
-      // Inicialización automática
-      renderFormFields();
-      loadData();
-    </script>
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/app.js"></script>
   </body>
 </html>

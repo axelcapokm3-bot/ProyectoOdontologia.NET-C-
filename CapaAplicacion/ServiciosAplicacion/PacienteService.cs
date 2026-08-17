@@ -18,15 +18,14 @@ public class PacienteService : IPacienteService
         _repositorioPaciente = repositorioPaciente;
     }
 
-    public Task RegistrarPacienteAsync(PacienteDtoInput paciente)
+    public async Task RegistrarPacienteAsync(PacienteDtoInput paciente)
     {
-
         if (!ValidadorNombre(paciente))
         {
             throw new ArgumentException("El nombre del paciente contiene caracteres no válidos o está vacío.");
         }
 
-        int nuevoId = autoincremental();
+        int nuevoId = await autoincremental();
 
         var nuevoPaciente = new Paciente(
             nuevoId,
@@ -35,27 +34,20 @@ public class PacienteService : IPacienteService
             paciente.FechaNacimiento,
             paciente.Telefono,
             paciente.Email
-
         );
 
-        // 2. Ejecutar validaciones lógicas cruzadas de identidad y contacto
-        if (!ValidadorDeEmail(nuevoPaciente))
+        if (!await ValidadorDeEmail(nuevoPaciente))
         {
             throw new InvalidOperationException($"El correo electrónico '{paciente.Email}' ya está registrado.");
         }
 
-        if (!ValidarTelefono(nuevoPaciente))
+        if (!await ValidarTelefono(nuevoPaciente))
         {
             throw new InvalidOperationException($"El teléfono '{paciente.Telefono}' ya está registrado por otro paciente.");
         }
 
-
-
-        _repositorioPaciente.AgregarPaciente(nuevoPaciente);
-
-        return Task.CompletedTask;
+        await _repositorioPaciente.AgregarPaciente(nuevoPaciente);
     }
-
 
     public bool ValidadorNombre(PacienteDtoInput paciente)
     {
@@ -72,37 +64,33 @@ public class PacienteService : IPacienteService
         return true;
     }
 
-    public bool ValidadorDeEmail(Paciente paciente)
+    public async Task<bool> ValidadorDeEmail(Paciente paciente)
     {
-        var Pacientes = _repositorioPaciente.ObtenerTodos();
+        var pacientes = await _repositorioPaciente.ObtenerTodos();
 
-        foreach (var P in Pacientes)
+        foreach (var p in pacientes)
         {
-            if (paciente.Id != P.Id)
+            if (paciente.Id != p.Id)
             {
-
-                if (paciente.Email.Equals(P.Email, StringComparison.OrdinalIgnoreCase))
+                if (paciente.Email.Equals(p.Email, StringComparison.OrdinalIgnoreCase))
                 {
-
                     return false;
                 }
-
             }
         }
 
         return true;
-
     }
 
-    public bool ValidarTelefono(Paciente paciente)
+    public async Task<bool> ValidarTelefono(Paciente paciente)
     {
-        var pacientes = _repositorioPaciente.ObtenerTodos();
+        var pacientes = await _repositorioPaciente.ObtenerTodos();
 
-        foreach (var P in pacientes)
+        foreach (var p in pacientes)
         {
-            if (paciente.Id != P.Id)
+            if (paciente.Id != p.Id)
             {
-                if (P.Telefono.Equals(paciente.Telefono))
+                if (p.Telefono.Equals(paciente.Telefono))
                 {
                     return false;
                 }
@@ -111,17 +99,16 @@ public class PacienteService : IPacienteService
         return true;
     }
 
-    public Task<IEnumerable<PacienteDtoOutput>> ObtenerTodosLosPacientesAsync()
+    public async Task<IEnumerable<PacienteDtoOutput>> ObtenerTodosLosPacientesAsync()
     {
-        var pacientes = _repositorioPaciente.ObtenerTodos();
-
+        var pacientes = await _repositorioPaciente.ObtenerTodos();
 
         var resultado = new List<PacienteDtoOutput>();
 
         foreach (var p in pacientes)
         {
             var dto = new PacienteDtoOutput(
-                Guid.Parse(p.Id.ToString().PadLeft(32, '0')),
+                p.Id,
                 p.Nombre,
                 p.Apellido,
                 p.Email,
@@ -129,21 +116,40 @@ public class PacienteService : IPacienteService
                 p.Telefono
             );
 
-            resultado.Add(dto); // CORRECCIÓN: Guardamos el DTO explícitamente en la lista antes de terminar la vuelta
+            resultado.Add(dto);
         }
 
-        // Materializamos la lista en memoria
-
-        return Task.FromResult<IEnumerable<PacienteDtoOutput>>(resultado);
+        return resultado;
     }
 
-    public Task<PacienteDtoOutput> ObtenerPacientePorIdAsync(int id)
+    public async Task<List<PacienteDtoOutput>> BuscarPacientesAsync(string criterio)
     {
-        var p = _repositorioPaciente.ObtenerPacientePorId(id);
+        List<Paciente> pacientes = await _repositorioPaciente.BuscarPacientes(criterio);
+        List<PacienteDtoOutput> resultado = new List<PacienteDtoOutput>();
+
+        foreach (Paciente p in pacientes)
+        {
+            var dto = new PacienteDtoOutput(
+                p.Id,
+                p.Nombre,
+                p.Apellido,
+                p.Email,
+                p.FechaNacimiento,
+                p.Telefono
+            );
+            resultado.Add(dto);
+        }
+
+        return resultado;
+    }
+
+    public async Task<PacienteDtoOutput> ObtenerPacientePorIdAsync(int id)
+    {
+        var p = await _repositorioPaciente.ObtenerPacientePorId(id);
         if (p == null) throw new KeyNotFoundException($"No se encontró el paciente con ID {id}");
 
         var dto = new PacienteDtoOutput(
-             Guid.Parse(p.Id.ToString().PadLeft(32, '0')),
+            p.Id,
             p.Nombre,
             p.Apellido,
             p.Email,
@@ -151,12 +157,12 @@ public class PacienteService : IPacienteService
             p.Telefono
         );
 
-        return Task.FromResult<PacienteDtoOutput>(dto);
+        return dto;
     }
 
-    public Task ActualizarPacienteAsync(int id, PacienteDtoInput pacienteEditado)
+    public async Task ActualizarPacienteAsync(int id, PacienteDtoInput pacienteEditado)
     {
-        var existe = _repositorioPaciente.ObtenerPacientePorId(id);
+        var existe = await _repositorioPaciente.ObtenerPacientePorId(id);
         if (existe == null) throw new KeyNotFoundException($"No se encontró el paciente con ID {id}");
 
         var pacienteModificado = new Paciente(
@@ -168,38 +174,32 @@ public class PacienteService : IPacienteService
             pacienteEditado.Email
         );
 
-        _repositorioPaciente.ActualizarPaciente(pacienteModificado);
-
-        return Task.CompletedTask;
+        await _repositorioPaciente.ActualizarPaciente(pacienteModificado);
     }
 
-    public Task<bool> EliminarPacienteAsync(int id)
+    public async Task<bool> EliminarPacienteAsync(int id)
     {
-        // Corrección: Buscamos si el paciente específico existe por ID antes de intentar borrarlo
-        var existe = _repositorioPaciente.ObtenerPacientePorId(id);
-        if (existe == null) return Task.FromResult(false);
+        var existe = await _repositorioPaciente.ObtenerPacientePorId(id);
+        if (existe == null) return false;
 
-        _repositorioPaciente.EliminarPaciente(id);
-        return Task.FromResult(true);
+        await _repositorioPaciente.EliminarPaciente(id);
+        return true;
     }
 
-
-
-    //Metodo auxiliar Simulo autoincremental de ID  
-    public int autoincremental(int _ = 0)
+    public async Task<int> autoincremental()
     {
-        var Lista = _repositorioPaciente.ObtenerTodos();
+        var lista = await _repositorioPaciente.ObtenerTodos();
 
-        int IdMax = 0;
+        int idMax = 0;
 
-        foreach (var P in Lista)
+        foreach (var p in lista)
         {
-            if (P.Id > IdMax)
+            if (p.Id > idMax)
             {
-                IdMax = P.Id;
+                idMax = p.Id;
             }
         }
 
-        return IdMax + 1;
+        return idMax + 1;
     }
 }

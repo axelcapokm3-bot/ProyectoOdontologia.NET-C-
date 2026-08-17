@@ -1,0 +1,464 @@
+# Documentación Técnica Integral: Proyecto Odontología (.NET)
+
+## 1. Resumen Ejecutivo y Visión General del Proyecto
+
+### Nombre del Proyecto / Propósito
+El **Proyecto Odontología** es un sistema de gestión clínica integral desarrollado en C# para la administración operativa y médica de consultorios odontológicos. Permite la administración estructurada de **Pacientes**, **Odontólogos**, **Turnos**, **Tratamientos** y el control de **Insumos Odontológicos** (inventario, niveles de criticidad y punto de pedido).
+
+### Stack Tecnológico
+* **Framework Backend**: .NET 10.0 (`net10.0`)
+* **Framework Web**: ASP.NET Core Web API basada en controladores (`[ApiController]`)
+* **Documentación & Swagger**: OpenAPI (`Microsoft.AspNetCore.OpenApi` 10.0.5) / Swagger UI (`Swashbuckle.AspNetCore` 10.2.1)
+* **Persistencia In-Memory**: Colecciones en memoria basadas en `Dictionary<int, T>` hilo-instancia registradas como **Singleton** en el contenedor IoC.
+* **Manejo Global de Errores**: Middleware `GlobalExceptionHandler` basado en `IExceptionHandler` que genera respuestas estándar RFC 7807 (`ProblemDetails`).
+* **Mapeo y DTOs**: Mapeo manual optimizado mediante constructores orientados al dominio y DTOs explícitos (`DtosInput` y `DtosOutput`).
+* **Inyección de Dependencias**: Contenedor nativo de .NET (`Microsoft.Extensions.DependencyInjection`).
+* **Frontend Estático (Cliente de Referencia)**: Application Shell HTML5/CSS3/JS ES6+ modularizado en `CapaDePresentacion` (`assets/js/config.js`, `assets/js/api.js`, `assets/js/app.js`).
+
+### Mapa de la Solución (Solution Structure)
+La solución está organizada bajo el patrón de **Arquitectura Cebolla (Onion Architecture)** con flujo estricto de dependencias hacia el Núcleo (Dominio):
+
+* **CapaDominio (`ProyectoOdontologia.Domain.csproj`)**: Núcleo absoluto (Core Kernel). Contiene Entidades de Negocio, Enums y Reglas/Invariantes de Dominio. Cero dependencias externas.
+* **CapaAplicacion (`ProyectoOdontologia.Application.csproj`)**: Casos de uso y orquestación. Contiene Interfaces de Servicios, Interfaces de Repositorios, DTOs (Input/Output) y Lógica de Aplicación.
+* **CapaInfraestructura (`ProyectoOdontologia.Infrastructure.csproj`)**: Implementación concreta de repositorios (`RepositorioPaciente`, `RepositorioOdontologo`, `RepositorioInsumos`, `RepositorioTratamiento`, `RepositorioTurnos`) con búsqueda híbrida e In-Memory Singleton.
+* **CapaWebApi (`ProyectoOdontologia.API.csproj`)**: Capa de exposición HTTP RESTful. Controladores HTTP, middleware de excepciones global (`GlobalExceptionHandler`), configuración CORS y composición de dependencias en `Program.cs`.
+* **CapaDePresentacion**: Cliente Single Page Application (SPA) modularizado para la interacción directa con los endpoints de la API.
+
+---
+
+## 2. Capa 1: Domain (Núcleo de Negocio)
+
+La capa `CapaDominio` encapsula el estado y la lógica intrínseca del negocio sin acoplamiento a la infraestructura ni a marcos de trabajo HTTP.
+
+### Entidades de Dominio
+
+#### 1. Paciente (`CapaDominio/Entidades/Paciente.cs`)
+* **Propósito**: Representa a la persona que recibe tratamientos en la clínica.
+* **Propiedades**: `Id` (int, init), `Nombre` (string), `Apellido` (string), `FechaNacimiento` (DateTime), `Telefono` (string), `Email` (string).
+* **Invariantes y Reglas Encapsuladas**:
+  - `Id` debe ser un entero no negativo (`>= 0`).
+  - `Nombre` y `Apellido` son obligatorios (no nulos, vacíos ni compuestos por espacios).
+  - `FechaNacimiento` no puede ser una fecha futura ni anterior al año 1920. Debe ser igual o menor a 2007 (mayoría de edad / límite operativo).
+  - `Email` y `Telefono` son campos requeridos no nulos ni vacíos.
+
+#### 2. Odontologo (`CapaDominio/Entidades/Odontologo.cs`)
+* **Propósito**: Profesional a cargo de la atención médica.
+* **Propiedades**: `Id` (int, init), `Nombre` (string), `Matricula` (string), `Especialidad` (string), `Telefono` (string).
+* **Invariantes**:
+  - Validaciones estrictas en constructor contra nulos/espacios.
+  - Validación de rango de dígitos telefónicos (entre 8 y 10 caracteres).
+
+#### 3. Insumo (`CapaDominio/Entidades/Insumos.cs`)
+* **Propósito**: Material o insumo médico/odontológico de la clínica.
+* **Propiedades**: `Id`, `Nombre`, `Categoria` (`CategoriaPorInsumo`), `Stock` (int), `StockReservado` (int), `PuntoPedido` (int), `StockSeguridad` (int), `StockMaximo` (int).
+* **Invariantes y Cálculos de Inventario**:
+  - Cálculo dinámico de `StockSeguridad` según la categoría:
+    - *Descartable*: 200 unidades.
+    - *Anestesia*: 50 unidades.
+    - *Restauracion*: 20 unidades.
+    - *Instrumental*: 10 unidades.
+    - *Otros*: 30 unidades.
+  - `PuntoPedido` = `StockSeguridad * 2`.
+  - `StockMaximo` = `PuntoPedido * 3`.
+  - `StockDisponible()` = `Stock - StockReservado`.
+  - Método `ReducirStock(cantidad)`: Garantiza que la reducción no supere el stock disponible.
+  - Método `ObtenerEstadoStock()`: Retorna `NivelCriticidad` (`Critico`, `Medio`, `Bajo`).
+  - Método `SugerirCantidadAReponer()`: Retorna la diferencia para alcanzar `StockMaximo`.
+
+#### 4. Tratamiento (`CapaDominio/Entidades/Tratamiento.cs`) y TratamientoInsumo (`CapaDominio/Entidades/TratamientoInsumo.cs`)
+* **Propósito**: Definición de procedimientos clínicos y vinculación con los insumos requeridos.
+* **Propiedades de Tratamiento**: `Id` (int, init), `Descripcion` (string), `Costo` (decimal), `InsumosRequeridos` (`List<TratamientoInsumo>`).
+* **Reglas**: `Costo` no puede ser negativo (`>= 0`). El método `DescontarInsumos()` descuenta automáticamente las unidades consumidas en el inventario.
+
+#### 5. Turno (`CapaDominio/Entidades/Turnos.cs`)
+* **Propósito**: Cita médica programada asociando un Paciente, Odontólogo y Tratamiento.
+* **Propiedades**: `Id` (int, init), `FechaHora` (DateTime), `PacienteId` (int), `OdontologoId` (int), `TratamientoId` (int), `Estado` (`EstadoTurno`).
+* **Invariantes**:
+  - `FechaHora` debe ser mayor o igual a la fecha/hora actual.
+  - `PacienteId`, `OdontologoId`, `TratamientoId` deben ser enteros positivos (`> 0`).
+  - `Estado` inicial predeterminado: `EstadoTurno.Pendiente`.
+  - Método `CompletarTurno()`: Transiciona el estado a `Completado`.
+
+### Enumeraciones de Dominio
+* `CategoriaPorInsumo`: `Descartable = 1`, `Anestesia = 2`, `Restauracion = 3`, `Instrumental = 4`.
+* `EstadoTurno`: `Pendiente = 1`, `Completado = 2`, `Cancelado = 3`.
+* `EstadoInsumo`: Estados dinámicos de inventario (`Normal`, `Alerta`, `Critico`).
+
+---
+
+## 3. Capa 2: Application (Casos de Uso y Servicios)
+
+`CapaAplicacion` encapsula la lógica de orquestación de la aplicación y define los contratos de interfaz.
+
+### Interfaces de Repositorio (`CapaAplicacion/Interfaces`)
+* `IRepositorioPaciente`: `ObtenerTodos()`, `ObtenerPacientePorId(id)`, `BuscarPacientes(consulta)`, `AgregarPaciente(paciente)`, `ActualizarPaciente(paciente)`, `EliminarPaciente(id)`.
+* `IRepositorioOdontologo`: `ObtenerTodos()`, `ObtenerOdontologoPorId(id)`, `BuscarOdontologos(consulta)`, `AgregarOdontologo(odontologo)`, `ActualizarOdontologo(odontologo)`, `EliminarOdontologo(id)`.
+* `IRepositorioInsumos`: `ObtenerTodos()`, `ObtenerInsumoPorId(id)`, `AgregarInsumo(insumo)`, `ActualizarInsumo(insumo)`, `EliminarInsumo(id)`.
+* `IRepositorioTratamiento`: `ObtenerTodos()`, `ObtenerTratamientoPorId(id)`, `BuscarTratamientos(consulta)`, `AgregarTratamiento(tratamiento)`, `ActualizarTratamiento(tratamiento)`, `EliminarTratamiento(id)`.
+* `IRepositorioTurnos`: `ObtenerTodos()`, `ObtenerTurnoPorId(id)`, `BuscarTurnos(consulta)`, `AgregarTurno(turno)`, `ActualizarTurno(turno)`, `EliminarTurno(id)`.
+
+### Servicios de Aplicación
+
+#### `PacienteService` (`IPacienteService`)
+* Validaciones al registrar:
+  - `ValidadorNombre`: Verifica que contenga únicamente caracteres alfabéticos o espacios.
+  - `ValidadorDeEmail`: Garantiza unicidad del correo electrónico (case-insensitive) entre pacientes.
+  - `ValidarTelefono`: Garantiza unicidad del número telefónico entre pacientes.
+  - Generación de ID autoincremental seguro (`autoincremental()`).
+* Búsqueda e Interrogación: `ObtenerTodosLosPacientesAsync()`, `ObtenerPacientePorIdAsync(id)`.
+
+#### `OdontologoService` (`IOdontologoService`)
+* Validaciones: Matrícula requerida y única al registrar (case-insensitive).
+* Búsqueda Avanzada: `BuscarOdontologosAsync(texto)` invoca la búsqueda híbrida del repositorio.
+
+#### `InsumosService` (`IInsumosService`)
+* Casos de uso CRUD para materiales e insumos odontológicos.
+* Método `ObtenerAlertasStockAsync()`: Filtra insumos que requieren reposición.
+
+#### `TratamientoService` (`ITratamientoService`)
+* Operaciones CRUD e integración con búsqueda por texto (`BuscarTratamientosAsync`).
+
+#### `TurnosService` (`ITurnosService`)
+* Operaciones CRUD e integración con búsqueda por texto y fecha (`BuscarTurnosAsync`).
+
+### Data Transfer Objects (DTOs)
+
+| Recurso | DTO Input | DTO Output |
+|---|---|---|
+| **Paciente** | `Nombre`, `Apellido`, `Email`, `FechaNacimiento`, `Telefono` | `Id`, `Nombre`, `Apellido`, `Email`, `FechaNacimiento`, `Telefono` |
+| **Odontólogo** | `Nombre`, `Matricula`, `Especialidad`, `Telefono` | `Id`, `Nombre`, `Matricula`, `Especialidad`, `Telefono` |
+| **Turno** | `FechaHora`, `PacienteId`, `OdontologoId`, `TratamientoId` | `Id`, `FechaHora`, `PacienteId`, `OdontologoId`, `TratamientoId` |
+| **Tratamiento** | `Descripcion`, `Costo` | `Id`, `Descripcion`, `Costo` |
+| **Insumo** | `Nombre`, `Categoria`, `Stock` | `Id`, `Nombre`, `Stock`, `StockReserva`, `PuntoPedido` |
+
+---
+
+## 4. Capa 3: Infrastructure (Persistencia In-Memory Singleton)
+
+La capa `CapaInfraestructura` implementa las interfaces de repositorio utilizando un esquema **In-Memory basado en `Dictionary<int, T>`** registrado con tiempo de vida **Singleton** (`AddSingleton`).
+
+### Características Fundamentales
+1. **Persistencia Hilo-Instancia y Retención**: A diferencia de implementaciones previas con listas recreadas en el constructor, los repositorios mantienen un `Dictionary<int, T>` privado de solo lectura (`private readonly Dictionary<int, T> _entidades = new();`). Al estar registrados como `Singleton`, la información persiste en memoria durante toda la ejecución del proceso Web API.
+2. **Algoritmo de Búsqueda Híbrida**:
+   - Los repositorios que implementan `Buscar...` (`Paciente`, `Odontologo`, `Tratamiento`, `Turno`) aplican una estrategia de dos pasos:
+     - **Paso 1 (Búsqueda por ID)**: Intenta parsear la cadena ingresada como entero (`int.TryParse`). Si es válido y `>= 0`, busca la clave exacta en el diccionario (`TryGetValue` / `ObtenerPorId`).
+     - **Paso 2 (Búsqueda por Texto / Atributos)**: Si no es ID numérico o si no hubo coincidencia exacta, realiza un escaneo case-insensitive sobre las propiedades textuales de las entidades (`Nombre`, `Apellido`, `Matricula`, `Especialidad`, `Descripcion`, `FechaHora`, etc.).
+
+---
+
+## 5. Capa 4: Web API (Controladores y Global Exceptions)
+
+`CapaWebApi` expone los servicios a través de controladores RESTful y administra las canalizaciones HTTP.
+
+### Controladores y Endpoints
+
+#### 1. `PacienteController` (`/api/Paciente`)
+- `GET /api/Paciente?texto={string}`: Obtener todos los pacientes (o filtrar opcionalmente por query parameter `texto`).
+- `GET /api/Paciente/{id:int}`: Obtener paciente por ID.
+- `POST /api/Paciente`: Registrar paciente (Retorna `201 Created`).
+- `PUT /api/Paciente/{id:int}`: Actualizar paciente (Retorna `204 No Content`).
+- `DELETE /api/Paciente/{id:int}`: Eliminar paciente (Retorna `204 No Content`).
+
+#### 2. `OdontologoController` (`/api/Odontologo`)
+- `GET /api/Odontologo`: Obtener todos los odontólogos.
+- `GET /api/Odontologo/{id:int}`: Obtener por ID (Convierte `KeyNotFoundException` a `404`).
+- `GET /api/Odontologo/buscar?texto={string}`: Búsqueda híbrida de odontólogos.
+- `POST /api/Odontologo`: Crear odontólogo (`201 Created`).
+- `PUT /api/Odontologo/{id:int}`: Actualizar odontólogo (`204 No Content`).
+- `DELETE /api/Odontologo/{id:int}`: Eliminar odontólogo (`204 No Content` / `404 Not Found`).
+
+#### 3. `TratamientoController` (`/api/Tratamiento`)
+- `GET /api/Tratamiento`: Obtener todos los tratamientos.
+- `GET /api/Tratamiento/{id:int}`: Obtener por ID.
+- `GET /api/Tratamiento/buscar?texto={string}`: Búsqueda de tratamientos por descripción o ID.
+- `POST /api/Tratamiento`: Crear tratamiento (`201 Created`).
+- `PUT /api/Tratamiento/{id:int}`: Actualizar tratamiento (`204 No Content`).
+- `DELETE /api/Tratamiento/{id:int}`: Eliminar tratamiento (`204 No Content`).
+
+#### 4. `TurnosController` (`/api/Turnos`)
+- `GET /api/Turnos`: Obtener todos los turnos.
+- `GET /api/Turnos/{id:int}`: Obtener turno por ID.
+- `GET /api/Turnos/buscar?texto={string}`: Búsqueda de turnos por ID, fecha u IDs de paciente/odontólogo/tratamiento.
+- `POST /api/Turnos`: Agendar turno (`201 Created`).
+- `PUT /api/Turnos/{id:int}`: Actualizar turno (`204 No Content`).
+- `DELETE /api/Turnos/{id:int}`: Cancelar/Eliminar turno (`204 No Content`).
+
+#### 5. `InsumosController` (`/api/Insumos`)
+- `GET /api/Insumos`: Obtener todos los insumos.
+- `GET /api/Insumos/{id:int}`: Obtener insumo por ID.
+- `POST /api/Insumos`: Registrar insumo (`201 Created`).
+- `PUT /api/Insumos/{id:int}`: Actualizar insumo (`204 No Content`).
+- `DELETE /api/Insumos/{id:int}`: Eliminar insumo (`204 No Content`).
+
+### Middleware de Excepciones Global (`GlobalExceptionHandler`)
+
+El proyecto implementa el contrato nativo `IExceptionHandler` de .NET (`TuProyecto.WebAPI.Middlewares.GlobalExceptionHandler`):
+- Reglas de Mapeo de Excepciones:
+  - `ArgumentException` o `InvalidOperationException` -> `400 Bad Request` ("Regla de Negocio / Petición Inválida").
+  - `KeyNotFoundException` -> `404 Not Found` ("Recurso No Encontrado").
+  - Cualquier otra excepción no capturada -> `500 Internal Server Error` ("Error Interno del Servidor").
+- Formato de Respuesta: Estándar **RFC 7807 ProblemDetails** JSON:
+  ```json
+  {
+    "status": 400,
+    "title": "Regla de Negocio / Petición Inválida",
+    "detail": "El correo electrónico 'usuario@ejemplo.com' ya está registrado.",
+    "instance": "/api/Paciente"
+  }
+  ```
+
+### Configuración en `Program.cs`
+- Inyección de Repositorios como **Singleton**: `AddSingleton<IRepositorioPaciente, RepositorioPaciente>()`, etc.
+- Inyección de Servicios como **Scoped**: `AddScoped<IPacienteService, PacienteService>()`, etc.
+- Middleware de Excepciones: `builder.Services.AddExceptionHandler<GlobalExceptionHandler>()`, `builder.Services.AddProblemDetails()`, y `app.UseExceptionHandler()`.
+- Política CORS `PermitirTodo`: Permite cualquier origen, método HTTP y cabecera.
+
+---
+
+## 6. Capa de Presentación (Frontend Cliente de Referencia)
+
+Ubicado en `CapaDePresentacion/Api.html` y modularizado en scripts dentro de `CapaDePresentacion/assets/js/`:
+- `config.js`: Define los esquemas de entidades, campos del formulario dinámico, tipos de datos y configuraciones.
+- `api.js`: Módulo de comunicación HTTP encapsulado con `fetch`, manejo de errores y parsing automático de `ProblemDetails`.
+- `app.js`: Lógica de orquestación de la UI, renderizado de tarjetas/listados, formularios reactivos, modal de ajustes de conexión y notificaciones Toast.
+
+---
+
+## 7. Mapa Completo de Contratos HTTP y Endpoints
+
+| Método | Endpoint | Query / Body | Respuesta Éxito | Respuestas de Error |
+|---|---|---|---|---|
+| `GET` | `/api/Paciente` | `?texto={string}` (Opcional) | `200 OK` (Array de `PacienteDtoOutput`) | `500 InternalServerError` |
+| `GET` | `/api/Paciente/{id}` | - | `200 OK` (`PacienteDtoOutput`) | `404 NotFound` (RFC 7807) |
+| `POST` | `/api/Paciente` | Body: `PacienteDtoInput` | `201 Created` | `400 BadRequest` (RFC 7807) |
+| `PUT` | `/api/Paciente/{id}` | Body: `PacienteDtoInput` | `204 No Content` | `400 BadRequest`, `404 NotFound` |
+| `DELETE` | `/api/Paciente/{id}` | - | `204 No Content` | `404 NotFound` |
+| `GET` | `/api/Odontologo` | - | `200 OK` (Array `OdontologoOutputDto`) | `500 InternalServerError` |
+| `GET` | `/api/Odontologo/{id}` | - | `200 OK` (`OdontologoOutputDto`) | `404 NotFound` |
+| `GET` | `/api/Odontologo/buscar` | `?texto={string}` (Requerido) | `200 OK` (Array `OdontologoOutputDto`) | `400 BadRequest` |
+| `POST` | `/api/Odontologo` | Body: `OdontologoInputDto` | `201 Created` | `400 BadRequest` |
+| `PUT` | `/api/Odontologo/{id}` | Body: `OdontologoInputDto` | `204 No Content` | `400 BadRequest`, `404 NotFound` |
+| `DELETE` | `/api/Odontologo/{id}` | - | `204 No Content` | `404 NotFound` |
+| `GET` | `/api/Tratamiento` | - | `200 OK` (Array `TratamientoDtoOutput`) | `500 InternalServerError` |
+| `GET` | `/api/Tratamiento/{id}` | - | `200 OK` (`TratamientoDtoOutput`) | `404 NotFound` |
+| `GET` | `/api/Tratamiento/buscar` | `?texto={string}` | `200 OK` (Array `TratamientoDtoOutput`) | `400 BadRequest` |
+| `POST` | `/api/Tratamiento` | Body: `TratamientoDtoInput` | `201 Created` | `400 BadRequest` |
+| `PUT` | `/api/Tratamiento/{id}` | Body: `TratamientoDtoInput` | `204 No Content` | `400 BadRequest`, `404 NotFound` |
+| `DELETE` | `/api/Tratamiento/{id}` | - | `204 No Content` | `404 NotFound` |
+| `GET` | `/api/Turnos` | - | `200 OK` (Array `TurnoDtoOutput`) | `500 InternalServerError` |
+| `GET` | `/api/Turnos/{id}` | - | `200 OK` (`TurnoDtoOutput`) | `404 NotFound` |
+| `GET` | `/api/Turnos/buscar` | `?texto={string}` | `200 OK` (Array `TurnoDtoOutput`) | `400 BadRequest` |
+| `POST` | `/api/Turnos` | Body: `TurnoDtoInput` | `201 Created` | `400 BadRequest` |
+| `PUT` | `/api/Turnos/{id}` | Body: `TurnoDtoInput` | `204 No Content` | `400 BadRequest`, `404 NotFound` |
+| `DELETE` | `/api/Turnos/{id}` | - | `204 No Content` | `404 NotFound` |
+| `GET` | `/api/Insumos` | - | `200 OK` (Array `InsumoDtosOutput`) | `500 InternalServerError` |
+| `GET` | `/api/Insumos/{id}` | - | `200 OK` (`InsumoDtosOutput`) | `404 NotFound` |
+| `POST` | `/api/Insumos` | Body: `InsumoDtosInput` | `201 Created` | `400 BadRequest` |
+| `PUT` | `/api/Insumos/{id}` | Body: `InsumoDtosInput` | `204 No Content` | `400 BadRequest`, `404 NotFound` |
+| `DELETE` | `/api/Insumos/{id}` | - | `204 No Content` | `404 NotFound` |
+
+---
+
+# PROMPT MAESTRO PARA GENERAR EL FRONTEND DE ÚLTIMA GENERACIÓN (SPA)
+
+> **Instrucciones de Uso**: Copiá y pegá el siguiente prompt en la IA de tu preferencia (ej. Claude, ChatGPT, Gemini, DeepSeek) para que genere la aplicación Frontend cliente completa e hiperprofesional consumiendo este backend.
+
+***
+
+```markdown
+Actúa como un Desarrollador Frontend Senior experto en UX/UI y Arquitectura de Software Web. Tu objetivo es crear una aplicación Single Page Application (SPA) web completa, hiperprofesional, moderna, dinámica e intuitiva en JavaScript / HTML5 / CSS Vanilla (o React / Next.js si se prefiere) para el **Sistema de Gestión Clínica Odontológica (OdontoCare)**.
+
+La aplicación debe ser visualmente deslumbrante (modo oscuro elegante con acentos neon/glassmorphism, tipografía Inter/Outfit de Google Fonts, micro-animaciones fluidas) y consumirá de manera estricta la Web API en .NET 10 especificada a continuación.
+
+---
+
+### 1. CONFIGURACIÓN Y CONEXIÓN A LA API
+* **Base URL por defecto**: `http://localhost:5231/api` (debe ser configurable dinámicamente desde la UI mediante un modal de ajustes o selector de entorno almacenado en `localStorage`).
+* **Manejo Estándar de Errores**: El backend utiliza el estándar RFC 7807 (`ProblemDetails`). Tu cliente HTTP debe capturar respuestas con error (HTTP 400, 404, 500) y mostrar al usuario alertas/notificaciones Toast elegantes con el `title` y `detail` recibidos en el JSON de error.
+
+---
+
+### 2. MÓDULOS DE LA APLICACIÓN Y ENTIDADES DE DATOS
+
+Deberás construir una interfaz dividida en 5 módulos principales accesibles desde una barra lateral (Sidebar Navigation):
+
+#### Módulo 1: Pacientes (`/api/Paciente`)
+- **Campos del Formulario (Input DTO)**:
+  - `nombre` (string, obligatorio, solo letras y espacios).
+  - `apellido` (string, obligatorio).
+  - `email` (string, formato email válido, único en el sistema).
+  - `fechaNacimiento` (date, no futura, rango válido 1920-2007).
+  - `telefono` (string, requerido).
+- **Listado (Output DTO)**: Muestra tarjetas/filas con `id` (int), `nombre`, `apellido`, `email`, `fechaNacimiento` (formateada dd/mm/yyyy) y `telefono`.
+- **Acciones**: Crear, Editar (pre-llenar formulario), Eliminar (con confirmación), Buscar en tiempo real (`GET /api/Paciente?texto=...`).
+
+#### Módulo 2: Odontólogos (`/api/Odontologo`)
+- **Campos del Formulario (Input DTO)**:
+  - `nombre` (string, obligatorio).
+  - `matricula` (string, obligatorio, única en el sistema).
+  - `especialidad` (string, obligatorio).
+  - `telefono` (string, 8 a 10 caracteres).
+- **Listado (Output DTO)**: `id`, `nombre`, `matricula`, `especialidad`, `telefono`.
+- **Acciones**: CRUD completo + Búsqueda por texto u ID (`GET /api/Odontologo/buscar?texto=...`).
+
+#### Módulo 3: Tratamientos (`/api/Tratamiento`)
+- **Campos del Formulario (Input DTO)**:
+  - `descripcion` (string, obligatorio).
+  - `costo` (decimal, >= 0).
+- **Listado (Output DTO)**: `id`, `descripcion`, `costo` (formateado como moneda `$ #,##0.00`).
+- **Acciones**: CRUD completo + Búsqueda por texto/ID (`GET /api/Tratamiento/buscar?texto=...`).
+
+#### Módulo 4: Turnos / Agendamiento (`/api/Turnos`)
+- **Campos del Formulario (Input DTO)**:
+  - `fechaHora` (datetime-local, no puede ser una fecha/hora pasada).
+  - `pacienteId` (int, selector/dropdown o input numérico seleccionando paciente existente).
+  - `odontologoId` (int, selector/dropdown de odontólogo existente).
+  - `tratamientoId` (int, selector/dropdown de tratamiento existente).
+- **Listado (Output DTO)**: `id`, `fechaHora` (formateada en formato legible), `pacienteId`, `odontologoId`, `tratamientoId`.
+- **Acciones**: Agendar cita, Editar cita, Cancelar/Eliminar turno, Búsqueda híbrida (`GET /api/Turnos/buscar?texto=...`).
+
+#### Módulo 5: Insumos y Stock (`/api/Insumos`)
+- **Campos del Formulario (Input DTO)**:
+  - `nombre` (string, obligatorio, letras y espacios).
+  - `categoria` (enum int: 1 = Descartable, 2 = Anestesia, 3 = Restauracion, 4 = Instrumental).
+  - `stock` (int, >= 0).
+- **Listado (Output DTO)**: `id`, `nombre`, `stock`, `stockReserva` (StockReservado), `puntoPedido`.
+- **Indicadores de Inventario (KPIs / Badges)**:
+  - Muestra un badge visual según el nivel de stock en relación al `puntoPedido`:
+    - Stock < PuntoPedido: 🔴 **Crítico / Reponer**
+    - Stock cerca del PuntoPedido: 🟡 **Alerta**
+    - Stock OK: 🟢 **Óptimo**
+- **Acciones**: CRUD completo de insumos.
+
+---
+
+### 3. REQUISITOS DE DISEÑO Y UX
+1. **Diseño Premium**: Paleta de colores elegante en modo oscuro (fondos `#090d16`, superficies `#131b2e`, bordes sutiles, acentos en turquesa `#00f2fe` y violeta `#4facfe`).
+2. **Interactividad y Tiempo Real**:
+   - Búsqueda dinámicas con debouncing (300ms) mientras el usuario escribe en la barra de búsqueda.
+   - Selectores relacionales automáticos al agendar Turnos (cargar listas de Pacientes, Odontólogos y Tratamientos para mostrar sus nombres en lugar de IDs pelados).
+3. **Validación en Cliente antes de Enviar**:
+   - Validar fechas no pasadas en Turnos.
+   - Validar formatos de email y teléfono antes de hacer POST/PUT.
+4. **Estados de Carga y Feedback**:
+   - Spinners o esqueletos de carga durante peticiones HTTP `fetch`.
+   - Notificaciones Toast en la esquina superior derecha para confirmar acciones exitosas ("Paciente registrado con éxito") o mostrar errores devueltos por la API.
+
+Entregame el código limpio, bien documentado y listo para ejecutar.
+```
+
+📄 Technical Requirements Document (TRD) & System Prompt
+1. System Overview & Architecture Context
+System Purpose: Dental Clinic Operations & Electronic Health Record (EHR) Web System.
+
+Target UI/UX Style: Ultra-minimalist, clinical, modern, highly accessible, high-contrast readability, non-fatiguing light mode.
+
+Design Philosophy: Dense information architecture made clean through generous whitespace, fine borders (1px), subtle micro-interactions, and visual hierarchy.
+
+2. Design System & Visual Tokens
+2.1 Color Palette (CSS Variables / Tailwind Tokens)
+JSON
+{
+  "colors": {
+    "background": "#F8FAFC",      /* Slate 50 - Base app background */
+    "surface": "#FFFFFF",         /* Pure White - Cards, modales, tablas */
+    "surface-border": "#E2E8F0",  /* Slate 200 - Subtile 1px borders */
+    "text-primary": "#0F172A",    /* Slate 900 - High contrast text */
+    "text-secondary": "#64748B",  /* Slate 500 - Labels, secondary metadata */
+    "brand-primary": "#0E7490",   /* Cyan 700 - Main action buttons, active states */
+    "brand-accent": "#14B8A6",    /* Teal 500 - Success, completed appointments */
+    "warning": "#F59E0B",         /* Amber 500 - Medical alerts, pending balances */
+    "danger": "#EF4444"           /* Red 500 - Surgical alerts, missing teeth */
+  }
+}
+2.2 Typography & Elevation
+Font Family: Primary: Inter or Plus Jakarta Sans, fallback system-ui, sans-serif.
+
+Borders: Thin, crisp borders (border: 1px solid #E2E8F0).
+
+Shadows: Soft, low-blur elevation:
+
+shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05)
+
+shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)
+
+2.3 Motion & Micro-interactions
+Duration: Max 200ms for standard state changes, 300ms for overlay transitions.
+
+Easing: cubic-bezier(0.4, 0, 0.2, 1) (ease-in-out).
+
+Hover States: Subtle background shifts (bg-slate-50), smooth scale transform on actionable icons (scale(1.05)).
+
+Loading States: Gray skeleton placeholders with smooth pulse animation (animate-pulse). Avoid blocking spinners where possible.
+
+3. Core Functional Modules & Specifications
+3.1 Interactive 2D Vector Odontogram (<Odontogram/>)
+Requirements:
+
+Render FDI two-digit notation (Adult: 11-48, Pediatric: 51-85).
+
+Render SVG vector paths per tooth divided into 5 surfaces: Vestibular, Lingual/Palatina, Mesial, Distal, Occlusal/Incisal.
+
+Interactivity:
+
+Hovering a surface highlights it with a 150ms transition.
+
+Clicking a surface opens a quick-action contextual popover (e.g., Mark Caries, Composite, Amalgam, Extraction Required).
+
+Color States:
+
+Red #EF4444: Pending Treatment / Pathology.
+
+Blue #0284C7: Performed / Existing Treatment.
+
+Gray #94A3B8 with 'X' cross overlay: Absent / Extracted Tooth.
+
+3.2 Clinical Agenda & Appointment Scheduler (<Scheduler/>)
+Views: Daily grid, Weekly resource timeline grouped by Dentist / Operating Room.
+
+Card Attributes: Patient Name, Treatment Type, Status Badge, Time Interval, Quick Contact Action.
+
+Status Badges (Color-coded):
+
+Scheduled: Gray/Slate
+
+In Waiting Room: Amber/Yellow
+
+In Chair (In Progress): Cyan/Blue
+
+Completed: Teal/Green
+
+Cancelled/No-show: Soft Red
+
+3.3 Patient Medical Record / EHR (<PatientProfile/>)
+Alert Banner: Sticky top element for critical medical conditions (e.g., Allergies: Penicillin, Diabetic, Hypertension).
+
+Radiography & File Viewer:
+
+Grid view with zoom modal capability.
+
+Side-by-side comparative mode (Before vs. After treatment).
+
+Chronological Medical Evolution Timeline:
+
+Scrollable history list detailing Date, Dentist ID, Procedure Performed, Surface Affected, and Notes.
+
+3.4 Budget & Treatment Plan Generator (<TreatmentPlanner/>)
+Auto-Sync: Dynamically aggregate items added from the Odontogram.
+
+Calculations: Base Price per item, Discount percentage, Total estimated cost, Installment plan break-down.
+
+4. Front-End Technical Stack & Guidelines
+Framework: React / Next.js or Vue / Nuxt.
+
+Styling: Tailwind CSS (utility-first approach).
+
+UI Component Primitives: Shadcn UI / Radix UI (headless, accessible components).
+
+Icons: Lucide Icons (stroke-width: 1.5px or 2px).
+
+State Management: Local component state for UI elements; central store (Zustand/Pinia) for global Patient & Odontogram state.
+
+5. Direct Instruction Prompt for AI Code Generation
+AI System Directive:
+"Build the frontend components based on this TRD. Maintain absolute fidelity to the clean, minimalist aesthetic using the specified color palette (#F8FAFC background, crisp 1px #E2E8F0 borders, #0E7490 primary accent). Ensure all micro-interactions are subtle (<=200ms). Prioritize functional accessibility, semantic HTML elements, clean modular code structure, and responsive layouts suitable for clinical desktop screens."

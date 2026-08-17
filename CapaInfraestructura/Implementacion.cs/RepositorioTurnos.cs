@@ -8,71 +8,97 @@ using CapaDominio.Entidades;
 
 public class RepositorioTurnos : IRepositorioTurnos
 {
-    private static List<Turnos> _turnos = new List<Turnos>();
+    private readonly Dictionary<int, Turno> _turnos = new();
 
-    public RepositorioTurnos()
+    public Task<IEnumerable<Turno>> ObtenerTodos()
     {
-        _turnos = new List<Turnos>();
+        return Task.FromResult<IEnumerable<Turno>>(_turnos.Values);
     }
 
-    public List<Turnos> ObtenerTodos()
-    {
-        return _turnos;
-    }
-
-    public Turnos? ObtenerTurnoPorId(int id)
-    {
-        foreach (var t in _turnos)
-        {
-            if (t.Id == id)
-            {
-                return t;
-            }
-        }
-        return null;
-    }
-
-    public void AgregarTurno(Turnos turno)
-    {
-        _turnos.Add(turno);
-    }
-
-    public void ActualizarTurno(Turnos turno)
-    {
-        if (turno == null)
-        {
-
-        }
-
-        foreach (Turnos i in _turnos)
-        {
-            if (i.Id == turno.Id)
-            {
-                i.FechaHora = turno.FechaHora;
-                i.PacienteId = turno.PacienteId;
-                i.OdontologoId = turno.OdontologoId;
-                i.TratamientoId = turno.TratamientoId;
-            }
-        }
-
-        return;
-    }
-
-    public void EliminarTurno(int id)
+    public Task<Turno?> ObtenerTurnoPorId(int id)
     {
         if (id < 0)
-        {
             throw new ArgumentOutOfRangeException(nameof(id), "No puedes ingresar IDs negativos.");
+
+        _turnos.TryGetValue(id, out var turno);
+        return Task.FromResult(turno);
+    }
+
+    //Sobrecarga de metodo: busqueda hibrida por ID o por texto
+    public Task<List<Turno>> BuscarTurnos(string consulta)
+    {
+        List<Turno> resultados = new List<Turno>();
+
+        if (string.IsNullOrWhiteSpace(consulta))
+        {
+            foreach (Turno t in _turnos.Values)
+            {
+                resultados.Add(t);
+            }
+            return Task.FromResult(resultados);
         }
 
-        for (int i = 0; i < _turnos.Count; i++)
+        string busqueda = consulta.Trim().ToLower();
+
+        //Primera busqueda: por ID numerico
+        if (int.TryParse(busqueda, out int idBuscado))
         {
-            if (_turnos[i].Id == id)
+            if (idBuscado >= 0)
             {
-                _turnos.RemoveAt(i);
+                Turno? turnoEncontrado = ObtenerTurnoPorId(idBuscado).Result;
+
+                if (turnoEncontrado != null)
+                {
+                    resultados.Add(turnoEncontrado);
+                    return Task.FromResult(resultados);
+                }
             }
         }
 
-        return;
+        //Segunda busqueda: por texto en FechaHora o por IDs de paciente/odontologo/tratamiento
+        foreach (Turno turno in _turnos.Values)
+        {
+            string fechaHora = turno.FechaHora.ToString("dd/MM/yyyy HH:mm");
+            string pacienteId = turno.PacienteId.ToString();
+            string odontologoId = turno.OdontologoId.ToString();
+            string tratamientoId = turno.TratamientoId.ToString();
+
+            if (fechaHora.Contains(busqueda) || pacienteId.Contains(busqueda) ||
+                odontologoId.Contains(busqueda) || tratamientoId.Contains(busqueda))
+            {
+                resultados.Add(turno);
+            }
+        }
+
+        return Task.FromResult(resultados);
+    }
+
+    public Task AgregarTurno(Turno turno)
+    {
+        if (turno == null)
+            throw new ArgumentNullException(nameof(turno));
+
+        _turnos.Add(turno.Id, turno);
+        return Task.CompletedTask;
+    }
+
+    public Task ActualizarTurno(Turno turno)
+    {
+        if (turno == null)
+            throw new ArgumentNullException(nameof(turno));
+
+        if (!_turnos.ContainsKey(turno.Id))
+            throw new KeyNotFoundException($"No se encontró un turno con el ID {turno.Id}.");
+
+        _turnos[turno.Id] = turno;
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> EliminarTurno(int id)
+    {
+        if (id < 0)
+            throw new ArgumentOutOfRangeException(nameof(id), "No puedes ingresar IDs negativos.");
+
+        return Task.FromResult(_turnos.Remove(id));
     }
 }

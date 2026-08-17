@@ -10,98 +10,204 @@ using System;
 
 public class TratamientoService : ITratamientoService
 {
-    private readonly IRepositorioTratamiento _repositorioTratamiento;
 
-    public TratamientoService(IRepositorioTratamiento repositorioTratamiento)
+    private readonly IRepositorioTratamiento _repositorioTratamiento;
+    private readonly IRepositorioInsumos _repositorioInsumos;
+
+
+    public TratamientoService(IRepositorioTratamiento repositorioTratamiento, IRepositorioInsumos repositorioInsumos)
     {
         _repositorioTratamiento = repositorioTratamiento;
+        _repositorioInsumos = repositorioInsumos;
     }
-
-    public Task RegistrarTratamientoAsync(TratamientoDtoInput tratamiento)
+    public async Task RegistrarTratamientoAsync(TratamientoDtoInput tratamiento)
     {
+        //validacion de la descripcion si nulo o vacio contiene espacios blanco lanzamos la excpecion 
         if (string.IsNullOrWhiteSpace(tratamiento.Descripcion))
         {
             throw new ArgumentException("La descripción del tratamiento no puede estar vacía.");
         }
-
+        // el costo no debe ser negativo  rompe la regla de negocio y yo lanzo la excepcion 
         if (tratamiento.Costo < 0)
         {
             throw new ArgumentException("El costo no puede ser negativo.");
         }
 
-        int nuevoId = autoincremental();
+
+        int nuevoId = await autoincremental();
+
+        var ListaRelaciones = new List<TratamientoInsumo>();
+
+        foreach (var item in tratamiento.TratamientoInsumo)
+        {
+            var relacion = new TratamientoInsumo(0, item.InsumoId, item.CantidadUsada);
+            {
+                ListaRelaciones.Add(relacion);
+            }
+        }
+
 
         var nuevoTratamiento = new Tratamiento(
-            nuevoId,
-            tratamiento.Descripcion,
-            tratamiento.Costo
-        );
+    nuevoId,
+    descripcion: tratamiento.Descripcion,
+    costo: tratamiento.Costo,
+    ListaRelaciones
+);
 
-        _repositorioTratamiento.AgregarTratamiento(nuevoTratamiento);
-
-        return Task.CompletedTask;
+        await _repositorioTratamiento.AgregarTratamiento(nuevoTratamiento);
     }
 
-    public Task<IEnumerable<TratamientoDtoOutput>> ObtenerTodosLosTratamientosAsync()
+    public async Task<IEnumerable<TratamientoDtoOutput>> ObtenerTodosLosTratamientosAsync()
     {
-        var tratamientos = _repositorioTratamiento.ObtenerTodos();
+        var tratamientos = await _repositorioTratamiento.ObtenerTodos();
         var resultado = new List<TratamientoDtoOutput>();
 
         foreach (var t in tratamientos)
         {
-            var dto = new TratamientoDtoOutput(
-                Guid.Parse(t.Id.ToString().PadLeft(32, '0')),
-                t.Descripcion,
-                t.Costo
-            );
-            resultado.Add(dto);
-        }
+            var ListaInsumos = new List<InsumoRequeridoDtoOutput>();
+            if (t.InsumosRequeridos != null)
+            {
+                foreach (var i in t.InsumosRequeridos)
+                {
+                    ListaInsumos.Add(new InsumoRequeridoDtoOutput(i.InsumoId, i.CantidadUsada));
+                }
 
-        return Task.FromResult<IEnumerable<TratamientoDtoOutput>>(resultado);
+                var dto = new TratamientoDtoOutput(
+                                t.Id,
+                                t.Descripcion,
+                                t.Costo,
+                                ListaInsumos
+                            );
+
+                resultado.Add(dto);
+
+            }
+
+
+        }
+        return resultado;
     }
 
-    public Task<TratamientoDtoOutput> ObtenerTratamientoPorIdAsync(int id)
+
+
+    public async Task<TratamientoDtoOutput> ObtenerTratamientoPorIdAsync(int id)
     {
-        var t = _repositorioTratamiento.ObtenerTratamientoPorId(id);
+        var t = await _repositorioTratamiento.ObtenerTratamientoPorId(id);
         if (t == null) throw new KeyNotFoundException($"No se encontró el tratamiento con ID {id}");
 
+
+        var listaInsumosDto = new List<InsumoRequeridoDtoOutput>();
+
+
+        if (t.InsumosRequeridos != null)
+        {
+            foreach (var item in t.InsumosRequeridos)
+            {
+                var insumoDto = new InsumoRequeridoDtoOutput(item.InsumoId, item.CantidadUsada);
+                listaInsumosDto.Add(insumoDto);
+            }
+        }
+
+
         var dto = new TratamientoDtoOutput(
-            Guid.Parse(t.Id.ToString().PadLeft(32, '0')),
+            t.Id,
             t.Descripcion,
-            t.Costo
+            t.Costo,
+            listaInsumosDto
         );
 
-        return Task.FromResult<TratamientoDtoOutput>(dto);
+        return dto;
     }
 
-    public Task ActualizarTratamientoAsync(int id, TratamientoDtoInput tratamientoEditado)
+    public async Task<List<TratamientoDtoOutput>> BuscarTratamientosAsync(string criterio)
     {
-        var existe = _repositorioTratamiento.ObtenerTratamientoPorId(id);
-        if (existe == null) throw new KeyNotFoundException($"No se encontró el tratamiento con ID {id}");
+        List<Tratamiento> tratamientos = await _repositorioTratamiento.BuscarTratamientos(criterio);
+        List<TratamientoDtoOutput> resultado = new List<TratamientoDtoOutput>();
+
+        foreach (Tratamiento t in tratamientos)
+        {
+
+            var listaInsumosDto = new List<InsumoRequeridoDtoOutput>();
+
+            if (t.InsumosRequeridos != null)
+            {
+                foreach (var item in t.InsumosRequeridos)
+                {
+                    var insumoDto = new InsumoRequeridoDtoOutput(item.InsumoId, item.CantidadUsada);
+                    listaInsumosDto.Add(insumoDto);
+                }
+
+                var dto = new TratamientoDtoOutput(
+               t.Id,
+               t.Descripcion,
+               t.Costo,
+               listaInsumosDto);
+
+                resultado.Add(dto);
+
+            }
+
+        }
+        return resultado;
+    }
+
+
+
+    public async Task ActualizarTratamientoAsync(int id, TratamientoDtoInput tratamientoEditado)
+    {
+
+        var existe = await _repositorioTratamiento.ObtenerTratamientoPorId(id);
+        if (existe == null)
+        {
+            throw new KeyNotFoundException($"No se encontró el tratamiento con ID {id}.");
+        }
+
+        if (string.IsNullOrWhiteSpace(tratamientoEditado.Descripcion))
+        {
+            throw new ArgumentException("La descripción del tratamiento no puede estar vacía.");
+        }
+
+        if (tratamientoEditado.Costo < 0)
+        {
+            throw new ArgumentException("El costo no puede ser negativo.");
+        }
+
+        if (tratamientoEditado.TratamientoInsumo == null || !tratamientoEditado.TratamientoInsumo.Any())
+        {
+            throw new ArgumentException("Debe incluir al menos un insumo en el tratamiento.");
+        }
+
+
+        var listaRelaciones = new List<TratamientoInsumo>();
+
+        foreach (var item in tratamientoEditado.TratamientoInsumo)
+        {
+
+            var relacion = new TratamientoInsumo(id, item.InsumoId, item.CantidadUsada);
+            listaRelaciones.Add(relacion);
+        }
 
         var tratamientoModificado = new Tratamiento(
             id,
-            tratamientoEditado.Descripcion,
-            tratamientoEditado.Costo
+            descripcion: tratamientoEditado.Descripcion,
+            costo: tratamientoEditado.Costo,
+            insumosRequeridos: listaRelaciones
         );
 
-        _repositorioTratamiento.ActualizarTratamiento(tratamientoModificado);
+        await _repositorioTratamiento.ActualizarTratamiento(tratamientoModificado);
+    }
+    public async Task<bool> EliminarTratamientoAsync(int id)
+    {
+        var existe = await _repositorioTratamiento.ObtenerTratamientoPorId(id);
+        if (existe == null) return false;
 
-        return Task.CompletedTask;
+        await _repositorioTratamiento.EliminarTratamiento(id);
+        return true;
     }
 
-    public Task<bool> EliminarTratamientoAsync(int id)
+    public async Task<int> autoincremental()
     {
-        var existe = _repositorioTratamiento.ObtenerTratamientoPorId(id);
-        if (existe == null) return Task.FromResult(false);
-
-        _repositorioTratamiento.EliminarTratamiento(id);
-        return Task.FromResult(true);
-    }
-
-    public int autoincremental()
-    {
-        var lista = _repositorioTratamiento.ObtenerTodos();
+        var lista = await _repositorioTratamiento.ObtenerTodos();
         int idMax = 0;
 
         foreach (var t in lista)

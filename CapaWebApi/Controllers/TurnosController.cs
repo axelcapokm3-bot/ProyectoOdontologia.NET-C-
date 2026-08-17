@@ -23,7 +23,7 @@ namespace CapaWebApi.Controllers
             return Ok(lista);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<ActionResult<TurnoDtoOutput>> ObtenerPorId(int id)
         {
             try
@@ -37,6 +37,13 @@ namespace CapaWebApi.Controllers
             }
         }
 
+        [HttpGet("buscar")]
+        public async Task<ActionResult<List<TurnoDtoOutput>>> Buscar([FromQuery] string texto)
+        {
+            var resultados = await _turnosService.BuscarTurnosAsync(texto);
+            return Ok(resultados);
+        }
+
         [HttpPost]
         public async Task<IActionResult> Guardar([FromBody] TurnoDtoInput turno)
         {
@@ -45,7 +52,7 @@ namespace CapaWebApi.Controllers
             return StatusCode(201);
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:int}")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] TurnoDtoInput turno)
         {
             if (turno == null) return BadRequest();
@@ -60,7 +67,7 @@ namespace CapaWebApi.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:int}")]
         public async Task<IActionResult> Eliminar(int id)
         {
             var eliminado = await _turnosService.EliminarTurnoAsync(id);

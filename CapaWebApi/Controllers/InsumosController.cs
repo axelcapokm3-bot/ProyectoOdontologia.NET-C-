@@ -7,11 +7,11 @@ namespace CapaWebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class InsumosControllers : ControllerBase
+    public class InsumosController : ControllerBase
     {
         private readonly IInsumosService _insumosService;
 
-        public InsumosControllers(IInsumosService insumosService)
+        public InsumosController(IInsumosService insumosService)
         {
             _insumosService = insumosService;
         }
@@ -23,12 +23,19 @@ namespace CapaWebApi.Controllers
             return Ok(lista);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<ActionResult<InsumoDtosOutput>> ObtenerPorId(int id)
         {
             var dto = await _insumosService.ObtenerInsumoPorIdAsync(id);
             if (dto == null) return NotFound();
             return Ok(dto);
+        }
+
+        [HttpGet("buscar")]
+        public async Task<ActionResult<List<InsumoDtosOutput>>> Buscar([FromQuery] string texto)
+        {
+            var resultados = await _insumosService.BuscarInsumosAsync(texto);
+            return Ok(resultados);
         }
 
         [HttpPost]
@@ -39,7 +46,7 @@ namespace CapaWebApi.Controllers
             return StatusCode(201);
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:int}")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] InsumoDtosInput insumo)
         {
             if (insumo == null) return BadRequest();
@@ -47,7 +54,7 @@ namespace CapaWebApi.Controllers
             return NoContent();
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:int}")]
         public async Task<IActionResult> Eliminar(int id)
         {
             var eliminado = await _insumosService.EliminarInsumoAsync(id);

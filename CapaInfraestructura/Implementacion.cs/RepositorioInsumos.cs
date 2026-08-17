@@ -8,70 +8,94 @@ using CapaDominio.Entidades;
 
 public class RepositorioInsumos : IRepositorioInsumos
 {
-    private static List<Insumo> _insumos = new List<Insumo>();
+    private readonly Dictionary<int, Insumo> _insumos = new();
 
-    public RepositorioInsumos()
+    public Task<IEnumerable<Insumo>> ObtenerTodos()
     {
-        _insumos = new List<Insumo>();
+        return Task.FromResult<IEnumerable<Insumo>>(_insumos.Values);
     }
 
-    public List<Insumo> ObtenerTodos()
-    {
-        return _insumos;
-    }
-
-    public Insumo? ObtenerInsumoPorId(int id)
-    {
-        foreach (var i in _insumos)
-        {
-            if (i.Id == id)
-            {
-                return i;
-            }
-        }
-        return null;
-    }
-
-    public void AgregarInsumo(Insumo insumo)
-    {
-        _insumos.Add(insumo);
-    }
-
-    public void ActualizarInsumo(Insumo insumo)
-    {
-        if (insumo == null)
-        {
-
-        }
-
-        foreach (Insumo i in _insumos)
-        {
-            if (i.Id == insumo.Id)
-            {
-                i.Nombre = insumo.Nombre;
-                i.Stock = insumo.Stock;
-                i.PuntoPedido = insumo.PuntoPedido;
-            }
-        }
-
-        return;
-    }
-
-    public void EliminarInsumo(int id)
+    public Task<Insumo?> ObtenerInsumoPorId(int id)
     {
         if (id < 0)
-        {
             throw new ArgumentOutOfRangeException(nameof(id), "No puedes ingresar IDs negativos.");
+
+        _insumos.TryGetValue(id, out var insumo);
+        return Task.FromResult(insumo);
+    }
+
+    //Busqueda hibrida por ID numerico o por texto en el nombre
+    public Task<List<Insumo>> BuscarInsumos(string consulta)
+    {
+        List<Insumo> resultados = new List<Insumo>();
+
+        if (string.IsNullOrWhiteSpace(consulta))
+        {
+            foreach (Insumo i in _insumos.Values)
+            {
+                resultados.Add(i);
+            }
+            return Task.FromResult(resultados);
         }
 
-        for (int i = 0; i < _insumos.Count; i++)
+        string busqueda = consulta.Trim().ToLower();
+
+        //Primera busqueda: por ID numerico
+        if (int.TryParse(busqueda, out int idBuscado))
         {
-            if (_insumos[i].Id == id)
+            if (idBuscado >= 0)
             {
-                _insumos.RemoveAt(i);
+                Insumo? insumoEncontrado = ObtenerInsumoPorId(idBuscado).Result;
+
+                if (insumoEncontrado != null)
+                {
+                    resultados.Add(insumoEncontrado);
+                    return Task.FromResult(resultados);
+                }
             }
         }
 
-        return;
+        //Segunda busqueda: por texto en el nombre o categoria
+        foreach (Insumo insumo in _insumos.Values)
+        {
+            string nombre = insumo.Nombre != null ? insumo.Nombre.ToLower() : "";
+            string categoria = insumo.Categoria.ToString().ToLower();
+
+            if (nombre.Contains(busqueda) || categoria.Contains(busqueda))
+            {
+                resultados.Add(insumo);
+            }
+        }
+
+        return Task.FromResult(resultados);
+    }
+
+    public Task AgregarInsumo(Insumo insumo)
+    {
+        if (insumo == null)
+            throw new ArgumentNullException(nameof(insumo));
+
+        _insumos.Add(insumo.Id, insumo);
+        return Task.CompletedTask;
+    }
+
+    public Task ActualizarInsumo(Insumo insumo)
+    {
+        if (insumo == null)
+            throw new ArgumentNullException(nameof(insumo));
+
+        if (!_insumos.ContainsKey(insumo.Id))
+            throw new KeyNotFoundException($"No se encontró un insumo con el ID {insumo.Id}.");
+
+        _insumos[insumo.Id] = insumo;
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> EliminarInsumo(int id)
+    {
+        if (id < 0)
+            throw new ArgumentOutOfRangeException(nameof(id), "No puedes ingresar IDs negativos.");
+
+        return Task.FromResult(_insumos.Remove(id));
     }
 }

@@ -2,21 +2,22 @@ namespace CapaAplicacion.Interfaces;
 
 using CapaDominio.Entidades;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 public interface IRepositorioTratamiento
 {
-    // Obtiene todos los tratamientos de la lista en memoria
-    List<Tratamiento> ObtenerTodos();
 
-    // Busca un tratamiento por su ID
-    Tratamiento? ObtenerTratamientoPorId(int id);
+    Task<IEnumerable<Tratamiento>> ObtenerTodos();
 
-    // Añade un nuevo tratamiento a la memoria
-    void AgregarTratamiento(Tratamiento tratamiento);
+    Task<Tratamiento?> ObtenerTratamientoPorId(int id);
 
-    // Actualiza los datos de un tratamiento existente
-    void ActualizarTratamiento(Tratamiento tratamiento);
+    Task<List<Tratamiento>> BuscarTratamientos(string criterio);
 
-    // Elimina un tratamiento de la memoria usando su ID
-    void EliminarTratamiento(int id);
+
+    Task AgregarTratamiento(Tratamiento tratamiento);
+
+    Task ActualizarTratamiento(Tratamiento tratamiento);
+
+
+    Task<bool> EliminarTratamiento(int id);
 }

@@ -1,7 +1,9 @@
 namespace ProyectoOdontologia.CapaAplicacion.DtosInput;
 
+using CapaDominio.Entidades;
+
 public record InsumoDtosInput(
     string Nombre,
-    int Stock,
-    int PuntoPedido
+    CategoriaInsumo Categoria,
+    int Stock
 );

@@ -6,80 +6,103 @@ using System.Threading.Tasks;
 using CapaAplicacion.Interfaces;
 using CapaDominio.Entidades;
 
+
 public class RepositorioPaciente : IRepositorioPaciente
 {
-    private static List<Paciente> _pacientes = new List<Paciente>();
+    private readonly Dictionary<int, Paciente> _pacientes = new();
 
-
-
-
-    public List<Paciente> ObtenerTodos()
+    public Task<IEnumerable<Paciente>> ObtenerTodos()
     {
-        return _pacientes;
+        return Task.FromResult<IEnumerable<Paciente>>(_pacientes.Values);
     }
 
-
-    public Paciente? ObtenerPacientePorId(int id)
-    {
-        foreach (var p in _pacientes)
-        {
-            if (p.Id == id)
-            {
-                return p;
-            }
-        }
-        return null;
-
-    }
-
-
-    public void AgregarPaciente(Paciente paciente)
-    {
-
-        _pacientes.Add(paciente);
-    }
-
-    // 4. Actualizar Paciente
-    public void ActualizarPaciente(Paciente paciente)
-    {
-        if (paciente == null)
-        {
-
-        }
-
-        foreach (Paciente i in _pacientes)
-        {
-            if (i.Id == paciente.Id)
-            {
-                i.Nombre = paciente.Nombre;
-                i.Apellido = paciente.Apellido;
-                i.Email = paciente.Email;
-                i.FechaNacimiento = paciente.FechaNacimiento;
-                i.Telefono = paciente.Telefono;
-
-            }
-        }
-
-        return;
-    }
-
-    // 5. Eliminar Paciente
-    public void EliminarPaciente(int id)
+    public Task<Paciente?> ObtenerPacientePorId(int id)
     {
         if (id < 0)
-        {
             throw new ArgumentOutOfRangeException(nameof(id), "No puedes ingresar IDs negativos.");
-        }
 
+        _pacientes.TryGetValue(id, out var paciente);
+        return Task.FromResult(paciente);
+    }
 
-        for (int i = 0; i < _pacientes.Count; i++)
+    //sobrecarga de metodo overloading 
+    public Task<List<Paciente>> BuscarPacientes(string consulta)
+    {
+
+        List<Paciente> resultados = new List<Paciente>();
+        if (string.IsNullOrWhiteSpace(consulta))
         {
-            if (_pacientes[i].Id == id)
+            foreach (Paciente p in _pacientes.Values)
             {
-                _pacientes.RemoveAt(i);
+                resultados.Add(p);
             }
+            return Task.FromResult(resultados);
+
+
 
         }
-        return;
+
+        string busqueda = consulta.Trim().ToLower();
+
+        if (int.TryParse(busqueda, out int idBuscado))
+        {
+            if (idBuscado >= 0)
+            {
+
+                Paciente? pacienteEncontrado = ObtenerPacientePorId(idBuscado).Result;
+
+                if (pacienteEncontrado != null)
+                {
+                    resultados.Add(pacienteEncontrado);
+                    return Task.FromResult(resultados);
+                }
+            }
+        }
+        //Busqueda Secundaria Por Nombre si el usuario desea ingresar nombres o apellidos  ; 
+        foreach (var paciente in _pacientes.Values)
+        {
+            string nombre = paciente.Nombre != null ? paciente.Nombre.ToLower() : "";
+            string apellido = paciente.Apellido != null ? paciente.Apellido.ToLower() : "";
+
+            if (nombre.Contains(busqueda) || apellido.Contains(busqueda))
+            {
+                resultados.Add(paciente);
+            }
+        }
+
+        return Task.FromResult(resultados);
+    }
+
+
+
+
+
+    public Task AgregarPaciente(Paciente paciente)
+    {
+        if (paciente == null)
+            throw new ArgumentNullException(nameof(paciente));
+
+        _pacientes.Add(paciente.Id, paciente);
+        return Task.CompletedTask;
+    }
+
+    public Task ActualizarPaciente(Paciente paciente)
+    {
+        if (paciente == null)
+            throw new ArgumentNullException(nameof(paciente));
+
+        if (!_pacientes.ContainsKey(paciente.Id))
+            throw new KeyNotFoundException($"No se encontró un paciente con el ID {paciente.Id}.");
+
+        _pacientes[paciente.Id] = paciente;
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> EliminarPaciente(int id)
+    {
+        if (id < 0)
+            throw new ArgumentOutOfRangeException(nameof(id), "No puedes ingresar IDs negativos.");
+
+        return Task.FromResult(_pacientes.Remove(id));
     }
 }

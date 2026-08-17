@@ -1,33 +1,28 @@
 using CapaAplicacion.Interfaces;
 using ProyectoOdontologia.CapaAplicacion.ServiciosAplicacion;
 using CapaInfraestructura.Implementacion;
-using CapaAplicacion.Interfaces;
-
+using TuProyecto.WebAPI.Middlewares;
+using CapaWebApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Servicios del Sistema
+builder.Services.AddSingleton<IRepositorioPaciente, RepositorioPaciente>();
+builder.Services.AddSingleton<IRepositorioOdontologo, RepositorioOdontologo>();
+builder.Services.AddSingleton<IRepositorioInsumos, RepositorioInsumos>();
+builder.Services.AddSingleton<IRepositorioTratamiento, RepositorioTratamiento>();
+builder.Services.AddSingleton<IRepositorioTurnos, RepositorioTurnos>();
+
+
+builder.Services.AddScoped<IPacienteService, PacienteService>();
+builder.Services.AddScoped<IOdontologoService, OdontologoService>();
+builder.Services.AddScoped<IInsumosService, InsumosService>();
+builder.Services.AddScoped<ITratamientoService, TratamientoService>();
+builder.Services.AddScoped<ITurnosService, TurnosService>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddScoped<IPacienteService, PacienteService>();
-builder.Services.AddScoped<IOdontologoService, OdontologoService>();
-builder.Services.AddScoped<ITurnosService, TurnosService>();
-builder.Services.AddScoped<ITratamientoService, TratamientoService>();
-builder.Services.AddScoped<IInsumosService, InsumosService>();
-
-builder.Services.AddScoped<IRepositorioPaciente, RepositorioPaciente>();
-builder.Services.AddScoped<IPacienteService, PacienteService>();
-
-
-builder.Services.AddScoped<IRepositorioPaciente, RepositorioPaciente>();
-builder.Services.AddScoped<IRepositorioOdontologo, RepositorioOdontologo>();
-builder.Services.AddScoped<IRepositorioTurnos, RepositorioTurnos>();
-builder.Services.AddScoped<IRepositorioTratamiento, RepositorioTratamiento>();
-builder.Services.AddScoped<IRepositorioInsumos, RepositorioInsumos>();
-
-// 3. Configuración de CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("PermitirTodo", policy =>
@@ -38,24 +33,22 @@ builder.Services.AddCors(options =>
     });
 });
 
-var app = builder.Build();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
-// 4. Middlewares de Entorno de Desarrollo
+var app = builder.Build();
+//app.UseDeveloperExceptionPage(); FUERZA A A LA API A CAPTURAR CUALQUIERO EXCEPCION Y MOSTRAR EN EL BACKEND 
 if (app.Environment.IsDevelopment())
 {
-    app.UseDeveloperExceptionPage();
+
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// 5. El ORDEN CRÍTICO de los Middlewares
-app.UseRouting(); // 1° Enrutar la petición
+app.UseRouting();
+app.UseCors("PermitirTodo");
+app.UseAuthorization();
+app.UseExceptionHandler();
 
-app.UseCors("PermitirTodo"); // 2° Aplicar CORS (¡Justo aquí!)
-app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
-
-app.UseAuthorization(); // 3° Autorizar
-
-app.MapControllers(); // 4° Mapear a los Controladores
-
+app.MapControllers();
 app.Run();

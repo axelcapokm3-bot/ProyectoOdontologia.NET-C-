@@ -8,71 +8,95 @@ using CapaDominio.Entidades;
 
 public class RepositorioOdontologo : IRepositorioOdontologo
 {
-    private static List<Odontologo> _odontologos = new List<Odontologo>();
+    private readonly Dictionary<int, Odontologo> _odontologos = new();
 
-    public RepositorioOdontologo()
+    public Task<IEnumerable<Odontologo>> ObtenerTodos()
     {
-        _odontologos = new List<Odontologo>();
+        return Task.FromResult<IEnumerable<Odontologo>>(_odontologos.Values);
     }
 
-    public List<Odontologo> ObtenerTodos()
-    {
-        return _odontologos;
-    }
-
-    public Odontologo? ObtenerOdontologoPorId(int id)
-    {
-        foreach (var o in _odontologos)
-        {
-            if (o.Id == id)
-            {
-                return o;
-            }
-        }
-        return null;
-    }
-
-    public void AgregarOdontologo(Odontologo odontologo)
-    {
-        _odontologos.Add(odontologo);
-    }
-
-    public void ActualizarOdontologo(Odontologo odontologo)
-    {
-        if (odontologo == null)
-        {
-
-        }
-
-        foreach (Odontologo i in _odontologos)
-        {
-            if (i.Id == odontologo.Id)
-            {
-                i.Nombre = odontologo.Nombre;
-                i.Matricula = odontologo.Matricula;
-                i.Especialidad = odontologo.Especialidad;
-                i.Telefono = odontologo.Telefono;
-            }
-        }
-
-        return;
-    }
-
-    public void EliminarOdontologo(int id)
+    public Task<Odontologo?> ObtenerOdontologoPorId(int id)
     {
         if (id < 0)
-        {
             throw new ArgumentOutOfRangeException(nameof(id), "No puedes ingresar IDs negativos.");
+
+        _odontologos.TryGetValue(id, out var odontologo);
+        return Task.FromResult(odontologo);
+    }
+
+    //Sobrecarga de metodo: busqueda hibrida por ID o por texto
+    public Task<List<Odontologo>> BuscarOdontologos(string consulta)
+    {
+        List<Odontologo> resultados = new List<Odontologo>();
+
+        if (string.IsNullOrWhiteSpace(consulta))
+        {
+            foreach (Odontologo o in _odontologos.Values)
+            {
+                resultados.Add(o);
+            }
+            return Task.FromResult(resultados);
         }
 
-        for (int i = 0; i < _odontologos.Count; i++)
+        string busqueda = consulta.Trim().ToLower();
+
+        //Primera busqueda: por ID numerico
+        if (int.TryParse(busqueda, out int idBuscado))
         {
-            if (_odontologos[i].Id == id)
+            if (idBuscado >= 0)
             {
-                _odontologos.RemoveAt(i);
+                Odontologo? odontologoEncontrado = ObtenerOdontologoPorId(idBuscado).Result;
+
+                if (odontologoEncontrado != null)
+                {
+                    resultados.Add(odontologoEncontrado);
+                    return Task.FromResult(resultados);
+                }
             }
         }
 
-        return;
+        //Segunda busqueda: por texto en Nombre, Matricula o Especialidad
+        foreach (Odontologo odontologo in _odontologos.Values)
+        {
+            string nombre = odontologo.Nombre != null ? odontologo.Nombre.ToLower() : "";
+            string matricula = odontologo.Matricula != null ? odontologo.Matricula.ToLower() : "";
+            string especialidad = odontologo.Especialidad != null ? odontologo.Especialidad.ToLower() : "";
+
+            if (nombre.Contains(busqueda) || matricula.Contains(busqueda) || especialidad.Contains(busqueda))
+            {
+                resultados.Add(odontologo);
+            }
+        }
+
+        return Task.FromResult(resultados);
+    }
+
+    public Task AgregarOdontologo(Odontologo odontologo)
+    {
+        if (odontologo == null)
+            throw new ArgumentNullException(nameof(odontologo));
+
+        _odontologos.Add(odontologo.Id, odontologo);
+        return Task.CompletedTask;
+    }
+
+    public Task ActualizarOdontologo(Odontologo odontologo)
+    {
+        if (odontologo == null)
+            throw new ArgumentNullException(nameof(odontologo));
+
+        if (!_odontologos.ContainsKey(odontologo.Id))
+            throw new KeyNotFoundException($"No se encontró un odontólogo con el ID {odontologo.Id}.");
+
+        _odontologos[odontologo.Id] = odontologo;
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> EliminarOdontologo(int id)
+    {
+        if (id < 0)
+            throw new ArgumentOutOfRangeException(nameof(id), "No puedes ingresar IDs negativos.");
+
+        return Task.FromResult(_odontologos.Remove(id));
     }
 }
