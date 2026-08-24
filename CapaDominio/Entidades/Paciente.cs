@@ -13,7 +13,7 @@ public class Paciente
 
     public Paciente(int id, string nombre, string apellido, DateTime fechaNacimiento, string telefono, string email)
     {
-        if (id <= 0)
+        if (id <= 0 || id.Equals(null))
         {
             throw new ArgumentException("El ID debe ser un número positivo.");
         }

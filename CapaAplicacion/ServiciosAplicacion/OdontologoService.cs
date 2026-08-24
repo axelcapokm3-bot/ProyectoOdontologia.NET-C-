@@ -24,10 +24,10 @@ public class OdontologoService : IOdontologoService
             throw new ArgumentException("La matrícula ya está registrada o es inválida.");
         }
 
-        int nuevoId = await autoincremental();
+        int idOdontologo = _repositorioOdontologo.IdAutoIncrementoSincrono();
 
         var nuevoOdontologo = new Odontologo(
-            nuevoId,
+            idOdontologo,
             odontologo.Nombre,
             odontologo.Matricula,
             odontologo.Especialidad,
@@ -135,21 +135,5 @@ public class OdontologoService : IOdontologoService
             }
         }
         return true;
-    }
-
-    public async Task<int> autoincremental()
-    {
-        var lista = await _repositorioOdontologo.ObtenerTodos();
-        int idMax = 0;
-
-        foreach (var o in lista)
-        {
-            if (o.Id > idMax)
-            {
-                idMax = o.Id;
-            }
-        }
-
-        return idMax + 1;
     }
 }

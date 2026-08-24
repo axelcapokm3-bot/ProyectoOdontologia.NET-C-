@@ -20,4 +20,6 @@ public interface IRepositorioInsumos
     Task ActualizarInsumo(Insumo insumo);
 
     Task<bool> EliminarInsumo(int id);
+
+    int IdAutoIncrementoSincrono();
 }

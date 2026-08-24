@@ -1,14 +1,22 @@
 namespace CapaInfraestructura.Implementacion;
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using CapaAplicacion.Interfaces;
 using CapaDominio.Entidades;
 
 public class RepositorioOdontologo : IRepositorioOdontologo
 {
-    private readonly Dictionary<int, Odontologo> _odontologos = new();
+    private readonly ConcurrentDictionary<int, Odontologo> _odontologos = new();
+    private int _contadorId = 0;
+
+    public RepositorioOdontologo()
+    {
+        SincronizarContadorInicial();
+    }
 
     public Task<IEnumerable<Odontologo>> ObtenerTodos()
     {
@@ -45,9 +53,7 @@ public class RepositorioOdontologo : IRepositorioOdontologo
         {
             if (idBuscado >= 0)
             {
-                Odontologo? odontologoEncontrado = ObtenerOdontologoPorId(idBuscado).Result;
-
-                if (odontologoEncontrado != null)
+                if (_odontologos.TryGetValue(idBuscado, out Odontologo? odontologoEncontrado))
                 {
                     resultados.Add(odontologoEncontrado);
                     return Task.FromResult(resultados);
@@ -76,7 +82,9 @@ public class RepositorioOdontologo : IRepositorioOdontologo
         if (odontologo == null)
             throw new ArgumentNullException(nameof(odontologo));
 
-        _odontologos.Add(odontologo.Id, odontologo);
+        if (!_odontologos.TryAdd(odontologo.Id, odontologo))
+            throw new ArgumentException($"Ya existe un odontólogo con el ID {odontologo.Id}.");
+
         return Task.CompletedTask;
     }
 
@@ -97,6 +105,24 @@ public class RepositorioOdontologo : IRepositorioOdontologo
         if (id < 0)
             throw new ArgumentOutOfRangeException(nameof(id), "No puedes ingresar IDs negativos.");
 
-        return Task.FromResult(_odontologos.Remove(id));
+        return Task.FromResult(_odontologos.TryRemove(id, out _));
+    }
+
+    private void SincronizarContadorInicial()
+    {
+        int maximoId = 0;
+
+        foreach (int idExistente in _odontologos.Keys)
+        {
+            if (idExistente > maximoId)
+                maximoId = idExistente;
+        }
+
+        _contadorId = maximoId;
+    }
+
+    public int IdAutoIncrementoSincrono()
+    {
+        return Interlocked.Increment(ref _contadorId);
     }
 }

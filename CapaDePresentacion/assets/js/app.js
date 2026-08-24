@@ -13,6 +13,7 @@ const entities = {
     endpoint: "Paciente",
     description: "Completá los datos básicos del paciente.",
     fields: [
+      { name: "id", label: "ID", type: "number", min: "1", step: "1", required: true },
       { name: "nombre", label: "Nombre", type: "text", required: true, pattern: "[A-Za-zÁÉÍÓÚáéíóúÑñÜü ]+" },
       { name: "apellido", label: "Apellido", type: "text", required: true, pattern: "[A-Za-zÁÉÍÓÚáéíóúÑñÜü ]+" },
       { name: "email", label: "Correo electrónico", type: "email", required: true },
@@ -32,6 +33,7 @@ const entities = {
     endpoint: "Odontologo",
     description: "Registrá los datos profesionales y de contacto.",
     fields: [
+      { name: "id", label: "ID", type: "number", min: "1", step: "1", required: true },
       { name: "nombre", label: "Nombre completo", type: "text", required: true },
       { name: "matricula", label: "Matrícula", type: "text", required: true },
       { name: "especialidad", label: "Especialidad", type: "text", required: true },
@@ -50,6 +52,7 @@ const entities = {
     endpoint: "Tratamiento",
     description: "Definí los procedimientos y los insumos que consumen.",
     fields: [
+      { name: "id", label: "ID", type: "number", min: "1", step: "1", required: true },
       { name: "descripcion", label: "Descripción", type: "text", required: true },
       { name: "costo", label: "Costo", type: "number", min: "0", step: "0.01", required: true }
     ],
@@ -82,6 +85,7 @@ const entities = {
     endpoint: "Insumos",
     description: "El punto de pedido se calcula automáticamente según la categoría.",
     fields: [
+      { name: "id", label: "ID", type: "number", min: "1", step: "1", required: true },
       { name: "nombre", label: "Nombre del insumo", type: "text", required: true, pattern: "[A-Za-zÁÉÍÓÚáéíóúÑñÜü ]+" },
       { name: "categoria", label: "Categoría", type: "select", required: true, options: [["1", "Descartable"], ["2", "Anestesia"], ["3", "Restauración"], ["4", "Instrumental"]] },
       { name: "stock", label: "Stock inicial", type: "number", min: "0", step: "1", required: true }
@@ -241,7 +245,7 @@ function populateDoctorFilter() {
 
 /* ---------- Renderizado de tablas ---------- */
 function filteredRecords(entity) {
-  const list = state.search[entity] || state.data[entity] || [];
+  let list = state.search[entity] || state.data[entity] || [];
   if (entity === "turnos") list = applyTurnoFilters(list);
   return list;
 }

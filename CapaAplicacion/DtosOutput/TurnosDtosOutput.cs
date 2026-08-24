@@ -1,6 +1,5 @@
 namespace ProyectoOdontologia.CapaAplicacion.DtosOutput;
 
-
 public record TurnoDtoOutput(
     int Id,
     DateTime FechaHora,

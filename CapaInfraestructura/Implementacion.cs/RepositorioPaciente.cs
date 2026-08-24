@@ -1,7 +1,9 @@
 namespace CapaInfraestructura.Implementacion;
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using CapaAplicacion.Interfaces;
 using CapaDominio.Entidades;
@@ -9,7 +11,13 @@ using CapaDominio.Entidades;
 
 public class RepositorioPaciente : IRepositorioPaciente
 {
-    private readonly Dictionary<int, Paciente> _pacientes = new();
+    private readonly ConcurrentDictionary<int, Paciente> _pacientes = new();
+    private int _contadorId = 0;
+
+    public RepositorioPaciente()
+    {
+        SincronizarContadorInicial();
+    }
 
     public Task<IEnumerable<Paciente>> ObtenerTodos()
     {
@@ -48,10 +56,7 @@ public class RepositorioPaciente : IRepositorioPaciente
         {
             if (idBuscado >= 0)
             {
-
-                Paciente? pacienteEncontrado = ObtenerPacientePorId(idBuscado).Result;
-
-                if (pacienteEncontrado != null)
+                if (_pacientes.TryGetValue(idBuscado, out Paciente? pacienteEncontrado))
                 {
                     resultados.Add(pacienteEncontrado);
                     return Task.FromResult(resultados);
@@ -82,7 +87,9 @@ public class RepositorioPaciente : IRepositorioPaciente
         if (paciente == null)
             throw new ArgumentNullException(nameof(paciente));
 
-        _pacientes.Add(paciente.Id, paciente);
+        if (!_pacientes.TryAdd(paciente.Id, paciente))
+            throw new ArgumentException($"Ya existe un paciente con el ID {paciente.Id}.");
+
         return Task.CompletedTask;
     }
 
@@ -103,6 +110,24 @@ public class RepositorioPaciente : IRepositorioPaciente
         if (id < 0)
             throw new ArgumentOutOfRangeException(nameof(id), "No puedes ingresar IDs negativos.");
 
-        return Task.FromResult(_pacientes.Remove(id));
+        return Task.FromResult(_pacientes.TryRemove(id, out _));
+    }
+
+    private void SincronizarContadorInicial()
+    {
+        int maximoId = 0;
+
+        foreach (int idExistente in _pacientes.Keys)
+        {
+            if (idExistente > maximoId)
+                maximoId = idExistente;
+        }
+
+        _contadorId = maximoId;
+    }
+
+    public int IdAutoIncrementoSincrono()
+    {
+        return Interlocked.Increment(ref _contadorId);
     }
 }

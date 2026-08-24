@@ -1,14 +1,22 @@
 namespace CapaInfraestructura.Implementacion;
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using CapaAplicacion.Interfaces;
 using CapaDominio.Entidades;
 
 public class RepositorioTurnos : IRepositorioTurnos
 {
-    private readonly Dictionary<int, Turno> _turnos = new();
+    private readonly ConcurrentDictionary<int, Turno> _turnos = new();
+    private int _contadorId = 0;
+
+    public RepositorioTurnos()
+    {
+        SincronizarContadorInicial();
+    }
 
     public Task<IEnumerable<Turno>> ObtenerTodos()
     {
@@ -45,9 +53,7 @@ public class RepositorioTurnos : IRepositorioTurnos
         {
             if (idBuscado >= 0)
             {
-                Turno? turnoEncontrado = ObtenerTurnoPorId(idBuscado).Result;
-
-                if (turnoEncontrado != null)
+                if (_turnos.TryGetValue(idBuscado, out Turno? turnoEncontrado))
                 {
                     resultados.Add(turnoEncontrado);
                     return Task.FromResult(resultados);
@@ -78,7 +84,9 @@ public class RepositorioTurnos : IRepositorioTurnos
         if (turno == null)
             throw new ArgumentNullException(nameof(turno));
 
-        _turnos.Add(turno.Id, turno);
+        if (!_turnos.TryAdd(turno.Id, turno))
+            throw new ArgumentException($"Ya existe un turno con el ID {turno.Id}.");
+
         return Task.CompletedTask;
     }
 
@@ -99,6 +107,24 @@ public class RepositorioTurnos : IRepositorioTurnos
         if (id < 0)
             throw new ArgumentOutOfRangeException(nameof(id), "No puedes ingresar IDs negativos.");
 
-        return Task.FromResult(_turnos.Remove(id));
+        return Task.FromResult(_turnos.TryRemove(id, out _));
+    }
+
+    private void SincronizarContadorInicial()
+    {
+        int maximoId = 0;
+
+        foreach (int idExistente in _turnos.Keys)
+        {
+            if (idExistente > maximoId)
+                maximoId = idExistente;
+        }
+
+        _contadorId = maximoId;
+    }
+
+    public int IdAutoIncrementoSincrono()
+    {
+        return Interlocked.Increment(ref _contadorId);
     }
 }

@@ -19,12 +19,12 @@ public class TratamientoInsumo
             throw new ArgumentException("La cantidad usada debe ser mayor a cero.");
         }
 
-        if(tratamientoId == null || tratamientoId < 0 )
+        if(tratamientoId.Equals(null) || tratamientoId < 0 )
         {
              throw new ArgumentException(" No debe ser nulo ni debe ser negativo");
         }
 
-          if(insumoId == null || insumoId < 0 )
+          if(insumoId.Equals(null) || insumoId < 0 )
         {
              throw new ArgumentException(" No debe ser nulo ni debe ser negativo");
         }

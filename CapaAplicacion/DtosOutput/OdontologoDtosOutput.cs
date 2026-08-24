@@ -1,6 +1,5 @@
 namespace ProyectoOdontologia.CapaAplicacion.DtosOutput;
 
-
 public record OdontologoOutputDto(
     int Id,
     string Nombre,

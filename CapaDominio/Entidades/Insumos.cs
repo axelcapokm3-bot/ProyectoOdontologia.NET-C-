@@ -42,6 +42,8 @@ public class Insumo
         StockMaximo = PuntoPedido * 3;
     }
 
+    
+
     public int StockDisponible()
     {
         lock (_stockLock)

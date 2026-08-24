@@ -20,4 +20,6 @@ public interface IRepositorioTratamiento
 
 
     Task<bool> EliminarTratamiento(int id);
+
+    int IdAutoIncrementoSincrono();
 }

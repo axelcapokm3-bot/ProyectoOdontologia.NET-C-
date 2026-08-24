@@ -25,10 +25,10 @@ public class PacienteService : IPacienteService
             throw new ArgumentException("El nombre del paciente contiene caracteres no válidos o está vacío.");
         }
 
-        int nuevoId = await autoincremental();
+        int idPaciente = _repositorioPaciente.IdAutoIncrementoSincrono();
 
         var nuevoPaciente = new Paciente(
-            nuevoId,
+            idPaciente,
             paciente.Nombre,
             paciente.Apellido,
             paciente.FechaNacimiento,
@@ -162,9 +162,6 @@ public class PacienteService : IPacienteService
 
     public async Task ActualizarPacienteAsync(int id, PacienteDtoInput pacienteEditado)
     {
-        var existe = await _repositorioPaciente.ObtenerPacientePorId(id);
-        if (existe == null) throw new KeyNotFoundException($"No se encontró el paciente con ID {id}");
-
         var pacienteModificado = new Paciente(
             id,
             pacienteEditado.Nombre,
@@ -173,6 +170,19 @@ public class PacienteService : IPacienteService
             pacienteEditado.Telefono,
             pacienteEditado.Email
         );
+
+        if (!await ValidadorDeEmail(pacienteModificado))
+        {
+            throw new InvalidOperationException($"El correo electrónico '{pacienteEditado.Email}' ya está registrado.");
+        }
+
+        if (!await ValidarTelefono(pacienteModificado))
+        {
+            throw new InvalidOperationException($"El teléfono '{pacienteEditado.Telefono}' ya está registrado por otro paciente.");
+        }
+
+        var existe = await _repositorioPaciente.ObtenerPacientePorId(id);
+        if (existe == null) throw new KeyNotFoundException($"No se encontró el paciente con ID {id}");
 
         await _repositorioPaciente.ActualizarPaciente(pacienteModificado);
     }
@@ -184,22 +194,5 @@ public class PacienteService : IPacienteService
 
         await _repositorioPaciente.EliminarPaciente(id);
         return true;
-    }
-
-    public async Task<int> autoincremental()
-    {
-        var lista = await _repositorioPaciente.ObtenerTodos();
-
-        int idMax = 0;
-
-        foreach (var p in lista)
-        {
-            if (p.Id > idMax)
-            {
-                idMax = p.Id;
-            }
-        }
-
-        return idMax + 1;
     }
 }

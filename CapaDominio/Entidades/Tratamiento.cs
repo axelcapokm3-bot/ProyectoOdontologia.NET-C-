@@ -17,13 +17,13 @@ public class Tratamiento
 
     public Tratamiento(int id, string descripcion, decimal costo, List<TratamientoInsumo> insumosRequeridos)
     {
-        if (id <= 0)
+        if (id <= 0 || id.Equals(null))
             throw new ArgumentException("El ID debe ser un número positivo.");
 
         if (string.IsNullOrWhiteSpace(descripcion))
             throw new ArgumentException("La descripción no puede estar vacía.");
 
-        if (costo < 0)
+        if (costo < 0 || costo.Equals(null))
             throw new ArgumentException("El costo no puede ser negativo.");
 
         Id = id;

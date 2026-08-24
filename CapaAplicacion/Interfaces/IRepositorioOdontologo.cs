@@ -18,4 +18,6 @@ public interface IRepositorioOdontologo
     Task ActualizarOdontologo(Odontologo odontologo);
 
     Task<bool> EliminarOdontologo(int id);
+
+    int IdAutoIncrementoSincrono();
 }

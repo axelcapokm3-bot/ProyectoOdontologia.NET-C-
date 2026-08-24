@@ -33,9 +33,6 @@ public class TratamientoService : ITratamientoService
             throw new ArgumentException("El costo no puede ser negativo.");
         }
 
-
-        int nuevoId = await autoincremental();
-
         var ListaRelaciones = new List<TratamientoInsumo>();
 
         foreach (var item in tratamiento.TratamientoInsumo)
@@ -46,9 +43,10 @@ public class TratamientoService : ITratamientoService
             }
         }
 
+        int idTratamiento = _repositorioTratamiento.IdAutoIncrementoSincrono();
 
         var nuevoTratamiento = new Tratamiento(
-    nuevoId,
+    idTratamiento,
     descripcion: tratamiento.Descripcion,
     costo: tratamiento.Costo,
     ListaRelaciones
@@ -203,21 +201,5 @@ public class TratamientoService : ITratamientoService
 
         await _repositorioTratamiento.EliminarTratamiento(id);
         return true;
-    }
-
-    public async Task<int> autoincremental()
-    {
-        var lista = await _repositorioTratamiento.ObtenerTodos();
-        int idMax = 0;
-
-        foreach (var t in lista)
-        {
-            if (t.Id > idMax)
-            {
-                idMax = t.Id;
-            }
-        }
-
-        return idMax + 1;
     }
 }

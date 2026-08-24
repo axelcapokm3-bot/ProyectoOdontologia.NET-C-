@@ -24,10 +24,10 @@ public class InsumosService : IInsumosService
             throw new ArgumentException("El nombre del insumo contiene caracteres no válidos o está vacío.");
         }
 
-        int nuevoId = await autoincremental();
+        int idInsumo = _repositorioInsumos.IdAutoIncrementoSincrono();
 
         var nuevoInsumo = new Insumo(
-            nuevoId,
+            idInsumo,
             insumo.Nombre,
             insumo.Categoria,
             insumo.Stock
@@ -128,21 +128,5 @@ public class InsumosService : IInsumosService
             }
         }
         return true;
-    }
-
-    public async Task<int> autoincremental()
-    {
-        var lista = await _repositorioInsumos.ObtenerTodos();
-        int idMax = 0;
-
-        foreach (var i in lista)
-        {
-            if (i.Id > idMax)
-            {
-                idMax = i.Id;
-            }
-        }
-
-        return idMax + 1;
     }
 }

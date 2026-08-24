@@ -19,4 +19,6 @@ public interface IRepositorioTurnos
     Task ActualizarTurno(Turno turno);
 
     Task<bool> EliminarTurno(int id);
+
+    int IdAutoIncrementoSincrono();
 }
