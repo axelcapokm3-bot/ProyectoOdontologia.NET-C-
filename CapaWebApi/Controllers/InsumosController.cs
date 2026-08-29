@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using CapaAplicacion.Interfaces;
 using ProyectoOdontologia.CapaAplicacion.DtosInput;
 using ProyectoOdontologia.CapaAplicacion.DtosOutput;
 
 namespace CapaWebApi.Controllers
 {
+    [Authorize(Roles = "Admin,Odontologo")]
     [ApiController]
     [Route("api/[controller]")]
     public class InsumosController : ControllerBase

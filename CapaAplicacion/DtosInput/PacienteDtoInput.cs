@@ -4,6 +4,24 @@ using System.ComponentModel.DataAnnotations;
 
 public record PacienteDtoInput
 {
+    public PacienteDtoInput()
+    {
+    }
+
+    public PacienteDtoInput(int? id, string nombre, string apellido, string email, DateTime fechaNacimiento, string telefono)
+    {
+        Id = id;
+        Nombre = nombre;
+        Apellido = apellido;
+        Email = email;
+        FechaNacimiento = fechaNacimiento;
+        Telefono = telefono;
+    }
+
+    public int? UsuarioId { get; init; } = null;
+    public string? NombreUsuario { get; init; } = null;
+    public string? Password { get; init; } = null;
+
     [Required(ErrorMessage = "El nombre es obligatorio.")]
     [StringLength(50, ErrorMessage = "El nombre no puede superar los 50 caracteres.")]
     public string Nombre { get; init; } = string.Empty;

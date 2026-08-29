@@ -262,13 +262,13 @@ public class RepositorioInsumosTests
     }
 
     [Fact]
-    public void AgregarInsumo_IdDuplicado_LanzaArgumentException()
+    public async Task AgregarInsumo_IdDuplicado_LanzaArgumentException()
     {
         // Arrange
         RepositorioInsumos repositorio = new RepositorioInsumos();
-        repositorio.AgregarInsumo(EntidadesFactory.CrearInsumo(id: 1)).GetAwaiter().GetResult();
+        await repositorio.AgregarInsumo(EntidadesFactory.CrearInsumo(id: 1));
 
         // Act & Assert: conserva el contrato previo de Dictionary.Add sobre clave duplicada.
-        AssertionHelper.ThrowsSync<ArgumentException>(() => repositorio.AgregarInsumo(EntidadesFactory.CrearInsumo(id: 1)));
+        await Assert.ThrowsAsync<ArgumentException>(() => repositorio.AgregarInsumo(EntidadesFactory.CrearInsumo(id: 1)));
     }
 }

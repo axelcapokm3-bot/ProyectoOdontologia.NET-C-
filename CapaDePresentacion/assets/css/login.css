@@ -1,0 +1,37 @@
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+@keyframes subtleScaleFade {
+    0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes fadeUpText {
+    0% { opacity: 0; transform: translateY(15px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+    0% { opacity: 0; transform: translateX(20px); }
+    100% { opacity: 1; transform: translateX(0); }
+}
+
+.anim-logo {
+    animation: subtleScaleFade 0.8s ease-out forwards;
+}
+
+.anim-text-1 {
+    opacity: 0;
+    animation: fadeUpText 0.6s ease-out 0.3s forwards;
+}
+
+.anim-text-2 {
+    opacity: 0;
+    animation: fadeUpText 0.6s ease-out 0.5s forwards;
+}
+
+.anim-form {
+    opacity: 0;
+    animation: slideInRight 0.8s ease-out 0.2s forwards;
+}

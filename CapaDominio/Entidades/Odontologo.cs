@@ -4,12 +4,13 @@ namespace CapaDominio.Entidades;
 public class Odontologo
 {
     public int Id { get; init; }
+    public int? UsuarioId { get; private set; }
     public string Nombre { get; set; }
     public string Matricula { get; init; }
     public string Especialidad { get; set; }
     public int Telefono { get; set; }
 
-    public Odontologo(int id, string nombre, string matricula, string especialidad, int telefono)
+    public Odontologo(int id, string nombre, string matricula, string especialidad, int telefono, int? usuarioId = null)
     {
         if (id <= 0  || id.Equals(null))
         {
@@ -36,6 +37,7 @@ public class Odontologo
         }
 
         Id = id;
+        UsuarioId = usuarioId;
         Nombre = nombre;
         Matricula = matricula;
         Especialidad = especialidad;

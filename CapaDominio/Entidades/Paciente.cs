@@ -5,13 +5,14 @@ namespace CapaDominio.Entidades;
 public class Paciente
 {
     public int Id { get; init; }
+    public int? UsuarioId { get; private set; }
     public string Nombre { get; set; }
     public string Apellido { get; set; }
     public DateTime FechaNacimiento { get; set; }
     public string Telefono { get; set; }
     public string Email { get; set; }
 
-    public Paciente(int id, string nombre, string apellido, DateTime fechaNacimiento, string telefono, string email)
+    public Paciente(int id, string nombre, string apellido, DateTime fechaNacimiento, string telefono, string email, int? usuarioId = null)
     {
         if (id <= 0 || id.Equals(null))
         {
@@ -47,6 +48,7 @@ public class Paciente
         }
 
         Id = id;
+        UsuarioId = usuarioId;
         Nombre = nombre;
         Apellido = apellido;
         FechaNacimiento = fechaNacimiento;

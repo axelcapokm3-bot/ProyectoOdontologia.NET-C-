@@ -12,10 +12,19 @@ using System;
 public class PacienteService : IPacienteService
 {
     private readonly IRepositorioPaciente _repositorioPaciente;
+    private readonly IRepositorioUsuario? _repositorioUsuario;
+    private readonly IPasswordHasher? _passwordHasher;
 
     public PacienteService(IRepositorioPaciente repositorioPaciente)
     {
         _repositorioPaciente = repositorioPaciente;
+    }
+
+    public PacienteService(IRepositorioPaciente repositorioPaciente, IRepositorioUsuario repositorioUsuario, IPasswordHasher passwordHasher)
+    {
+        _repositorioPaciente = repositorioPaciente;
+        _repositorioUsuario = repositorioUsuario;
+        _passwordHasher = passwordHasher;
     }
 
     public async Task RegistrarPacienteAsync(PacienteDtoInput paciente)
@@ -26,6 +35,11 @@ public class PacienteService : IPacienteService
         }
 
         int idPaciente = _repositorioPaciente.IdAutoIncrementoSincrono();
+        int? usuarioId = paciente.UsuarioId;
+        if (usuarioId is null && !string.IsNullOrWhiteSpace(paciente.NombreUsuario) && !string.IsNullOrWhiteSpace(paciente.Password))
+        {
+            usuarioId = await CrearUsuarioPacienteAsync(paciente.NombreUsuario, paciente.Email, paciente.Password);
+        }
 
         var nuevoPaciente = new Paciente(
             idPaciente,
@@ -33,7 +47,8 @@ public class PacienteService : IPacienteService
             paciente.Apellido,
             paciente.FechaNacimiento,
             paciente.Telefono,
-            paciente.Email
+            paciente.Email,
+            usuarioId
         );
 
         if (!await ValidadorDeEmail(nuevoPaciente))
@@ -168,7 +183,8 @@ public class PacienteService : IPacienteService
             pacienteEditado.Apellido,
             pacienteEditado.FechaNacimiento,
             pacienteEditado.Telefono,
-            pacienteEditado.Email
+            pacienteEditado.Email,
+            pacienteEditado.UsuarioId
         );
 
         if (!await ValidadorDeEmail(pacienteModificado))
@@ -194,5 +210,27 @@ public class PacienteService : IPacienteService
 
         await _repositorioPaciente.EliminarPaciente(id);
         return true;
+    }
+
+    private async Task<int> CrearUsuarioPacienteAsync(string nombreUsuario, string email, string password)
+    {
+        if (_repositorioUsuario is null || _passwordHasher is null)
+            throw new InvalidOperationException("El registro automático de usuario no está configurado.");
+
+        if (await _repositorioUsuario.ObtenerPorNombreUsuarioAsync(nombreUsuario) is not null)
+            throw new InvalidOperationException("El nombre de usuario ya existe.");
+
+        if (await _repositorioUsuario.ObtenerPorEmailAsync(email) is not null)
+            throw new InvalidOperationException("El email de usuario ya existe.");
+
+        var usuario = new Usuario(
+            _repositorioUsuario.IdAutoIncrementoSincrono(),
+            nombreUsuario,
+            email,
+            _passwordHasher.Hash(password),
+            RolUsuario.Paciente);
+
+        await _repositorioUsuario.AgregarAsync(usuario);
+        return usuario.Id;
     }
 }

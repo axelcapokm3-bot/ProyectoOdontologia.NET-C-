@@ -4,6 +4,19 @@ using System.ComponentModel.DataAnnotations;
 
 public record TurnoDtoInput
 {
+    public TurnoDtoInput()
+    {
+    }
+
+    public TurnoDtoInput(DateTime FechaHoraInicio, DateTime FechaHoraFin, int PacienteId, int OdontologoId, int TratamientoId)
+    {
+        this.FechaHoraInicio = FechaHoraInicio;
+        this.FechaHoraFin = FechaHoraFin;
+        this.PacienteId = PacienteId;
+        this.OdontologoId = OdontologoId;
+        this.TratamientoId = TratamientoId;
+    }
+
     [Required(ErrorMessage = "La fecha y hora de inicio son obligatorias.")]
     public DateTime FechaHoraInicio { get; init; } = default;
 

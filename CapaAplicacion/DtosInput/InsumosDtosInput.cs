@@ -5,6 +5,18 @@ using CapaDominio.Entidades;
 
 public record InsumoDtosInput
 {
+    public InsumoDtosInput()
+    {
+    }
+
+    public InsumoDtosInput(int id, string nombre, CategoriaInsumo categoria, int stock)
+    {
+        Id = id;
+        Nombre = nombre;
+        Categoria = categoria;
+        Stock = stock;
+    }
+
     [Required(ErrorMessage = "El ID es obligatorio.")]
     public int Id { get; init; } = default;
 
