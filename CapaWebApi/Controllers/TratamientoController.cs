@@ -26,15 +26,8 @@ namespace CapaWebApi.Controllers
         [HttpGet("{id:int}")]
         public async Task<ActionResult<TratamientoDtoOutput>> ObtenerPorId(int id)
         {
-            try
-            {
-                var dto = await _tratamientoService.ObtenerTratamientoPorIdAsync(id);
-                return Ok(dto);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            var dto = await _tratamientoService.ObtenerTratamientoPorIdAsync(id);
+            return Ok(dto);
         }
 
         [HttpGet("buscar")]
@@ -48,30 +41,28 @@ namespace CapaWebApi.Controllers
         public async Task<IActionResult> Guardar([FromBody] TratamientoDtoInput tratamiento)
         {
             if (tratamiento == null) return BadRequest();
+
             await _tratamientoService.RegistrarTratamientoAsync(tratamiento);
-            return StatusCode(201);
+            return StatusCode(StatusCodes.Status201Created);
         }
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] TratamientoDtoInput tratamiento)
         {
             if (tratamiento == null) return BadRequest();
-            try
-            {
-                await _tratamientoService.ActualizarTratamientoAsync(id, tratamiento);
-                return NoContent();
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+
+            await _tratamientoService.ActualizarTratamientoAsync(id, tratamiento);
+            return NoContent();
         }
 
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Eliminar(int id)
         {
             var eliminado = await _tratamientoService.EliminarTratamientoAsync(id);
-            if (!eliminado) return NotFound();
+
+            if (!eliminado)
+                return NotFound();
+
             return NoContent();
         }
     }

@@ -6,6 +6,11 @@
 # dotenv files
 .env
 
+# SQLite local database
+*.db
+*.db-shm
+*.db-wal
+
 # User-specific files
 *.rsuser
 *.suo
@@ -480,3 +485,28 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# --- SDD / Proyecto Odontología ---
+# Secretos y configuración local (nunca versionar valores reales)
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+**/secrets.json
+*.secret.json
+
+# OpenCode: overrides locales del usuario
+.opencode/opencode.local.json
+.opencode/agents.local/
+.opencode/skills.local/
+
+# Salidas de herramientas
+scripts/.output/
+coverage/
+TestResults/
+*.trx
+
+# Scratch local de especificaciones (no borradores)
+spec/**/_scratch/
+memory/_local/

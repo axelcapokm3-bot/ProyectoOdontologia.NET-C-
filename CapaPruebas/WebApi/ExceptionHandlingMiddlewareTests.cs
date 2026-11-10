@@ -1,0 +1,98 @@
+namespace ProyectoOdontologia.Tests.WebApi;
+
+using System.Text.Json;
+using CapaDominio.Excepciones;
+using CapaWebApi.Middlewares;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
+
+public class ExceptionHandlingMiddlewareTests
+{
+    private static async Task<ResultadoMiddleware> EjecutarAsync(Exception excepcion)
+    {
+        DefaultHttpContext contexto = new DefaultHttpContext();
+        contexto.Request.Path = "/api/turnos";
+        contexto.Response.Body = new MemoryStream();
+
+        ExceptionHandlingMiddleware middleware = new ExceptionHandlingMiddleware(
+            delegate { return Task.FromException(excepcion); },
+            NullLogger<ExceptionHandlingMiddleware>.Instance);
+
+        await middleware.InvokeAsync(contexto);
+
+        contexto.Response.Body.Position = 0;
+        ProblemDetails? problema = await JsonSerializer.DeserializeAsync<ProblemDetails>(
+            contexto.Response.Body,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        return new ResultadoMiddleware(contexto, problema);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_TurnoSolapado_Responde409()
+    {
+        // Act
+        ResultadoMiddleware resultado = await EjecutarAsync(
+            new TurnoSolapadoException("El turno se solapa con otro turno existente."));
+
+        // Assert
+        Assert.Equal(StatusCodes.Status409Conflict, resultado.Contexto.Response.StatusCode);
+        Assert.Equal("application/problem+json", resultado.Contexto.Response.ContentType);
+        Assert.NotNull(resultado.Problema);
+        Assert.Equal(StatusCodes.Status409Conflict, resultado.Problema!.Status);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_PacienteNoEncontrado_Responde404()
+    {
+        // Act
+        ResultadoMiddleware resultado = await EjecutarAsync(new PacienteNoEncontradoException(99));
+
+        // Assert
+        Assert.Equal(StatusCodes.Status404NotFound, resultado.Contexto.Response.StatusCode);
+        Assert.NotNull(resultado.Problema);
+        Assert.Equal(StatusCodes.Status404NotFound, resultado.Problema!.Status);
+        Assert.Contains("99", resultado.Problema.Detail);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_DomainExceptionGenerica_Responde400()
+    {
+        // Act
+        ResultadoMiddleware resultado = await EjecutarAsync(
+            new DomainException("Regla de negocio incumplida."));
+
+        // Assert
+        Assert.Equal(StatusCodes.Status400BadRequest, resultado.Contexto.Response.StatusCode);
+        Assert.NotNull(resultado.Problema);
+        Assert.Equal(StatusCodes.Status400BadRequest, resultado.Problema!.Status);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ExcepcionNoControlada_Responde500SinExponerElDetalle()
+    {
+        // Act
+        ResultadoMiddleware resultado = await EjecutarAsync(
+            new Exception("detalle sensible que no debe exponerse"));
+
+        // Assert
+        Assert.Equal(StatusCodes.Status500InternalServerError, resultado.Contexto.Response.StatusCode);
+        Assert.NotNull(resultado.Problema);
+        Assert.Equal(StatusCodes.Status500InternalServerError, resultado.Problema!.Status);
+        Assert.Equal("Ocurrió un error inesperado.", resultado.Problema.Detail);
+        Assert.DoesNotContain("detalle sensible", resultado.Problema.Detail);
+    }
+
+    private sealed class ResultadoMiddleware
+    {
+        public ResultadoMiddleware(DefaultHttpContext contexto, ProblemDetails? problema)
+        {
+            Contexto = contexto;
+            Problema = problema;
+        }
+
+        public DefaultHttpContext Contexto { get; }
+        public ProblemDetails? Problema { get; }
+    }
+}

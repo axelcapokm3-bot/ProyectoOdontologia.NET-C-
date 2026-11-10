@@ -49,7 +49,8 @@ public class TratamientoService : ITratamientoService
     idTratamiento,
     descripcion: tratamiento.Descripcion,
     costo: tratamiento.Costo,
-    ListaRelaciones
+    insumosRequeridos: ListaRelaciones,
+    duracionEstimada: TimeSpan.FromMinutes(tratamiento.DuracionMinutos)
 );
 
         await _repositorioTratamiento.AgregarTratamiento(nuevoTratamiento);
@@ -74,7 +75,8 @@ public class TratamientoService : ITratamientoService
                                 t.Id,
                                 t.Descripcion,
                                 t.Costo,
-                                ListaInsumos
+                                ListaInsumos,
+                                (int)t.DuracionEstimada.TotalMinutes
                             );
 
                 resultado.Add(dto);
@@ -111,7 +113,8 @@ public class TratamientoService : ITratamientoService
             t.Id,
             t.Descripcion,
             t.Costo,
-            listaInsumosDto
+            listaInsumosDto,
+            (int)t.DuracionEstimada.TotalMinutes
         );
 
         return dto;
@@ -139,7 +142,8 @@ public class TratamientoService : ITratamientoService
                t.Id,
                t.Descripcion,
                t.Costo,
-               listaInsumosDto);
+               listaInsumosDto,
+               (int)t.DuracionEstimada.TotalMinutes);
 
                 resultado.Add(dto);
 
@@ -189,7 +193,8 @@ public class TratamientoService : ITratamientoService
             id,
             descripcion: tratamientoEditado.Descripcion,
             costo: tratamientoEditado.Costo,
-            insumosRequeridos: listaRelaciones
+            insumosRequeridos: listaRelaciones,
+            duracionEstimada: TimeSpan.FromMinutes(tratamientoEditado.DuracionMinutos)
         );
 
         await _repositorioTratamiento.ActualizarTratamiento(tratamientoModificado);

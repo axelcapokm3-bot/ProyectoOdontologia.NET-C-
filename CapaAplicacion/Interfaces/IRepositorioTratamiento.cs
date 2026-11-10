@@ -2,6 +2,7 @@ namespace CapaAplicacion.Interfaces;
 
 using CapaDominio.Entidades;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 public interface IRepositorioTratamiento
@@ -22,4 +23,6 @@ public interface IRepositorioTratamiento
     Task<bool> EliminarTratamiento(int id);
 
     int IdAutoIncrementoSincrono();
+
+    Task<Tratamiento?> ObtenerTratamientoPorIdAsync(int id, CancellationToken cancellationToken = default);
 }

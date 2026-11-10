@@ -3,6 +3,7 @@ namespace CapaInfraestructura.Implementacion;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CapaAplicacion.Interfaces;
@@ -126,5 +127,36 @@ public class RepositorioTurnos : IRepositorioTurnos
     public int IdAutoIncrementoSincrono()
     {
         return Interlocked.Increment(ref _contadorId);
+    }
+
+    public Task<Turno?> ObtenerTurnoPorIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return ObtenerTurnoPorId(id);
+    }
+
+    public Task<IReadOnlyList<Turno>> ObtenerTurnosDelDiaAsync(int odontologoId, DateTime fecha, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Turno> turnos = _turnos.Values
+            .Where(t => t.OdontologoId == odontologoId && t.Horario.Inicio.Date == fecha.Date)
+            .OrderBy(t => t.Horario.Inicio)
+            .ToList();
+
+        return Task.FromResult(turnos);
+    }
+
+    public Task<int> ObtenerProximoIdAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(IdAutoIncrementoSincrono());
+    }
+
+    public async Task<int> AgregarTurnoAsync(Turno turno, CancellationToken cancellationToken = default)
+    {
+        await AgregarTurno(turno);
+        return turno.Id;
+    }
+
+    public Task ActualizarTurnoAsync(Turno turno, CancellationToken cancellationToken = default)
+    {
+        return ActualizarTurno(turno);
     }
 }

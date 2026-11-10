@@ -16,6 +16,9 @@ public record TratamientoDtoInput
     [Range(0.01, 1000000000, ErrorMessage = "El costo debe ser mayor a 0.")]
     public decimal Costo { get; init; } = default;
 
+    [Range(1, 1440, ErrorMessage = "La duración estimada debe estar entre 1 y 1440 minutos.")]
+    public int DuracionMinutos { get; init; } = 30;
+
     [Required(ErrorMessage = "La lista de insumos requeridos es obligatoria.")]
     [MinLength(1, ErrorMessage = "Debe especificar al menos un insumo requerido.")]
     public List<InsumoRequeridoDtoInput> TratamientoInsumo { get; init; } = new();

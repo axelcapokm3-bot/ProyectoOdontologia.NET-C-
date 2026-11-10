@@ -21,6 +21,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CapaInfraestructura\ProyectoOdontologia.Infrastructure.csproj" />
+    <ProjectReference Include="..\CapaWebApi\ProyectoOdontologia.API.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>

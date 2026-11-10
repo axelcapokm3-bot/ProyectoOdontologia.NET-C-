@@ -28,15 +28,8 @@ namespace CapaWebApi.Controllers
         [HttpGet("{id:int}")]
         public async Task<ActionResult<OdontologoOutputDto>> ObtenerPorId(int id)
         {
-            try
-            {
-                var dto = await _odontologoService.ObtenerOdontologoPorIdAsync(id);
-                return Ok(dto);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            var dto = await _odontologoService.ObtenerOdontologoPorIdAsync(id);
+            return Ok(dto);
         }
 
         [HttpGet("buscar")]
@@ -50,30 +43,28 @@ namespace CapaWebApi.Controllers
         public async Task<IActionResult> Guardar([FromBody] OdontologoInputDto odontologo)
         {
             if (odontologo == null) return BadRequest();
+
             await _odontologoService.RegistrarOdontologoAsync(odontologo);
-            return StatusCode(201);
+            return StatusCode(StatusCodes.Status201Created);
         }
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] OdontologoInputDto odontologo)
         {
             if (odontologo == null) return BadRequest();
-            try
-            {
-                await _odontologoService.ActualizarOdontologoAsync(id, odontologo);
-                return NoContent();
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+
+            await _odontologoService.ActualizarOdontologoAsync(id, odontologo);
+            return NoContent();
         }
 
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Eliminar(int id)
         {
             var eliminado = await _odontologoService.EliminarOdontologoAsync(id);
-            if (!eliminado) return NotFound();
+
+            if (!eliminado)
+                return NotFound();
+
             return NoContent();
         }
     }

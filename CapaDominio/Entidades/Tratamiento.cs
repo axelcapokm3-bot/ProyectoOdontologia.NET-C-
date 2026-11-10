@@ -4,34 +4,46 @@ public class Tratamiento
 {
     private List<TratamientoInsumo> insumosRequeridos = new();
 
-    public int Id { get; init; }
-    public string Descripcion { get; set; }
-    public decimal Costo { get; set; }
+    public int Id { get; private set; }
+    public string Descripcion { get; private set; }
+    public decimal Costo { get; private set; }
+    public TimeSpan DuracionEstimada { get; private set; }
+    public IReadOnlyCollection<TratamientoInsumo> InsumosRequeridos => insumosRequeridos.AsReadOnly();
 
-    public List<TratamientoInsumo> InsumosRequeridos
+    private Tratamiento()
     {
-        get => insumosRequeridos;
-        set => insumosRequeridos = value;
+        Descripcion = null!;
+        DuracionEstimada = TimeSpan.FromMinutes(30);
     }
 
-
     public Tratamiento(int id, string descripcion, decimal costo, List<TratamientoInsumo> insumosRequeridos)
+        : this(id, descripcion, costo, insumosRequeridos, TimeSpan.FromMinutes(30))
     {
-        if (id <= 0 || id.Equals(null))
-            throw new ArgumentException("El ID debe ser un número positivo.");
+    }
 
-        if (string.IsNullOrWhiteSpace(descripcion))
-            throw new ArgumentException("La descripción no puede estar vacía.");
+    public Tratamiento(int id, string descripcion, decimal costo, TimeSpan duracionEstimada)
+        : this(id, descripcion, costo, new List<TratamientoInsumo>(), duracionEstimada)
+    {
+    }
 
-        if (costo < 0 || costo.Equals(null))
-            throw new ArgumentException("El costo no puede ser negativo.");
+    public Tratamiento(int id, string descripcion, decimal costo, List<TratamientoInsumo> insumosRequeridos, TimeSpan duracionEstimada)
+    {
+        if (id <= 0) throw new ArgumentException("El ID debe ser positivo.", nameof(id));
+        if (string.IsNullOrWhiteSpace(descripcion)) throw new ArgumentException("La descripción es obligatoria.", nameof(descripcion));
+        if (costo < 0) throw new ArgumentException("El costo no puede ser negativo.", nameof(costo));
+        if (duracionEstimada <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(duracionEstimada), "La duración estimada debe ser mayor a cero.");
 
         Id = id;
         Descripcion = descripcion;
         Costo = costo;
+        DuracionEstimada = duracionEstimada;
+        this.insumosRequeridos = insumosRequeridos ?? new List<TratamientoInsumo>();
+    }
 
-
-        InsumosRequeridos = insumosRequeridos ?? new List<TratamientoInsumo>();
+    public void AgregarInsumo(TratamientoInsumo insumo)
+    {
+        if (insumo == null) throw new ArgumentNullException(nameof(insumo));
+        insumosRequeridos.Add(insumo);
     }
 
     public void DescontarInsumos()
@@ -40,12 +52,8 @@ public class Tratamiento
         {
             if (detalle.Insumo != null)
             {
-
-                detalle.Insumo.ReducirStock(detalle.CantidadUsada);
+                detalle.Insumo.DescontarStock(detalle.CantidadUsada);
             }
         }
     }
-
-
-
 }

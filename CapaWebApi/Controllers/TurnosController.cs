@@ -28,15 +28,8 @@ namespace CapaWebApi.Controllers
         [HttpGet("{id:int}")]
         public async Task<ActionResult<TurnoDtoOutput>> ObtenerPorId(int id)
         {
-            try
-            {
-                var dto = await _turnosService.ObtenerTurnoPorIdAsync(id);
-                return Ok(dto);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            var dto = await _turnosService.ObtenerTurnoPorIdAsync(id);
+            return Ok(dto);
         }
 
         [HttpGet("buscar")]
@@ -46,34 +39,59 @@ namespace CapaWebApi.Controllers
             return Ok(resultados);
         }
 
+        [HttpGet("huecos")]
+        public async Task<ActionResult<List<IntervaloTiempoDto>>> ConsultarHuecos(
+            [FromQuery] int odontologoId,
+            [FromQuery] DateTime fecha,
+            [FromQuery] int duracionMinutos,
+            CancellationToken cancellationToken)
+        {
+            var request = new ConsultarHuecosRequestDto
+            {
+                OdontologoId = odontologoId,
+                Fecha = fecha,
+                DuracionMinutos = duracionMinutos
+            };
+
+            var huecos = await _turnosService.ConsultarHuecosDisponiblesAsync(request, cancellationToken);
+            return Ok(huecos);
+        }
+
         [HttpPost]
-        public async Task<IActionResult> Guardar([FromBody] TurnoDtoInput turno)
+        public async Task<ActionResult<int>> Guardar(
+            [FromBody] CrearTurnoRequestDto turno,
+            CancellationToken cancellationToken)
         {
             if (turno == null) return BadRequest();
-            await _turnosService.RegistrarTurnoAsync(turno);
-            return StatusCode(201);
+
+            int id = await _turnosService.RegistrarTurnoAsync(turno, cancellationToken);
+            return StatusCode(StatusCodes.Status201Created, id);
+        }
+
+        [HttpPatch("{id:int}/cancelar")]
+        public async Task<IActionResult> Cancelar(int id, CancellationToken cancellationToken)
+        {
+            await _turnosService.CancelarTurnoAsync(id, cancellationToken);
+            return NoContent();
         }
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] TurnoDtoInput turno)
         {
             if (turno == null) return BadRequest();
-            try
-            {
-                await _turnosService.ActualizarTurnoAsync(id, turno);
-                return NoContent();
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+
+            await _turnosService.ActualizarTurnoAsync(id, turno);
+            return NoContent();
         }
 
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Eliminar(int id)
         {
             var eliminado = await _turnosService.EliminarTurnoAsync(id);
-            if (!eliminado) return NotFound();
+
+            if (!eliminado)
+                return NotFound();
+
             return NoContent();
         }
     }

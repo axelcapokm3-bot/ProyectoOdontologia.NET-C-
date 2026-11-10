@@ -6,12 +6,12 @@ public class Insumo
 {
     private readonly object _stockLock = new object(); 
 
-    public int Id { get; init; }
-    public string Nombre { get; set; }
-    public CategoriaInsumo Categoria { get; set; }
+    public int Id { get; private set; }
+    public string Nombre { get; private set; }
+    public CategoriaInsumo Categoria { get; private set; }
     public int Stock { get; private set; }
     public int StockReservado { get; private set; }
-    public int PuntoPedido { get; set; }
+    public int PuntoPedido { get; private set; }
     public int StockSeguridad { get; private set; }
     public int StockMaximo { get; private set; }
 
@@ -27,7 +27,7 @@ public class Insumo
             throw new ArgumentException("El nombre es obligatorio.");
         }
 
-        if (stock <= 0)
+        if (stock < 0)
         {
             throw new ArgumentException("El stock no puede ser negativo.");
         }
@@ -36,6 +36,7 @@ public class Insumo
         Nombre = nombre;
         Categoria = categoria;
         Stock = stock;
+        StockReservado = 0;
 
         StockSeguridad = CalculoStockSeguridad(categoria);
         PuntoPedido = StockSeguridad * 2;
@@ -52,34 +53,34 @@ public class Insumo
         }
     }
 
-    public void ReducirStock(int cantidad)
+    public void DescontarStock(int cantidad)
     {
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad a reducir debe ser mayor a cero.");
+            throw new ArgumentException("La cantidad a descontar debe ser mayor a cero.");
         }
 
         lock (_stockLock)
         {
             if (ObtenerStockDisponibleInterno() < cantidad)
             {
-                throw new InvalidOperationException("No se puede reducir: la cantidad supera el stock disponible.");
+                throw new InvalidOperationException("No se puede descontar: la cantidad supera el stock disponible.");
             }
 
             Stock -= cantidad;
         }
     }
 
-    public void AumentarStock(int cantidadIngresa)
+    public void ReponerStock(int cantidad)
     {
-        if (cantidadIngresa <= 0)
+        if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad a ingresar debe ser mayor a cero.");
+            throw new ArgumentException("La cantidad a reponer debe ser mayor a cero.");
         }
 
         lock (_stockLock)
         {
-            Stock += cantidadIngresa;
+            Stock += cantidad;
         }
     }
 

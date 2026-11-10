@@ -6,7 +6,8 @@ public record TratamientoDtoOutput(
     int Id,
     string Descripcion,
     decimal Costo,
-    List<InsumoRequeridoDtoOutput> listaInsumo
+    List<InsumoRequeridoDtoOutput> listaInsumo,
+    int DuracionMinutos
 );
 
 public record InsumoRequeridoDtoOutput(

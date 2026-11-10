@@ -123,4 +123,9 @@ public class RepositorioTratamiento : IRepositorioTratamiento
     {
         return Interlocked.Increment(ref _contadorId);
     }
+
+    public Task<Tratamiento?> ObtenerTratamientoPorIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return ObtenerTratamientoPorId(id);
+    }
 }

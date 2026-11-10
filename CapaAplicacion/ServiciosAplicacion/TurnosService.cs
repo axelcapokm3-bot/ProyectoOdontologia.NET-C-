@@ -4,79 +4,196 @@ using global::CapaAplicacion.Interfaces;
 using global::ProyectoOdontologia.CapaAplicacion.DtosInput;
 using global::ProyectoOdontologia.CapaAplicacion.DtosOutput;
 using global::CapaDominio.Entidades;
+using global::CapaDominio.Excepciones;
 using global::CapaDominio.ObjetosDeValor;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 public class TurnosService : ITurnosService
 {
     private readonly IRepositorioTurnos _repositorioTurnos;
-//el semaforo decide como un peajo cuantos hilos o subprocesos ejecutamos a la vez I/O 
-    private static readonly SemaphoreSlim _semaforo = new SemaphoreSlim(1,1);
-    public TurnosService(IRepositorioTurnos repositorioTurnos)
+    private readonly IRepositorioTratamiento _repositorioTratamiento;
+    private readonly IRepositorioPaciente _repositorioPaciente;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public TurnosService(
+        IRepositorioTurnos repositorioTurnos,
+        IRepositorioTratamiento repositorioTratamiento,
+        IRepositorioPaciente repositorioPaciente,
+        IUnitOfWork unitOfWork)
     {
         _repositorioTurnos = repositorioTurnos;
+        _repositorioTratamiento = repositorioTratamiento;
+        _repositorioPaciente = repositorioPaciente;
+        _unitOfWork = unitOfWork;
     }
 
-   public async Task RegistrarTurnoAsync(TurnoDtoInput turnoDto)
-{
-    if (turnoDto == null)
-        throw new ArgumentNullException(nameof(turnoDto));
-
-    // 1. Entrada al semáforo de forma asíncrona (Sincronización thread-safe)
-    await _semaforo.WaitAsync();
-
-    try
+    public async Task<int> RegistrarTurnoAsync(CrearTurnoRequestDto nuevoTurno, CancellationToken cancellationToken = default)
     {
-        // 2. Traemos los turnos del Odontólogo desde el Repositorio
-        var turnosOdontologo = await _repositorioTurnos.ObtenerTodos();
+        if (nuevoTurno == null)
+            throw new ArgumentNullException(nameof(nuevoTurno));
 
-        // 3. Generamos el ID atómico
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+        Tratamiento? tratamiento = await _repositorioTratamiento.ObtenerTratamientoPorIdAsync(
+            nuevoTurno.TratamientoId,
+            cancellationToken);
+
+        if (tratamiento == null)
+            throw new KeyNotFoundException($"No se encontró el tratamiento con ID {nuevoTurno.TratamientoId}");
+
+        Paciente? paciente = await _repositorioPaciente.ObtenerPacientePorId(nuevoTurno.PacienteId);
+
+        if (paciente == null)
+            throw new PacienteNoEncontradoException(nuevoTurno.PacienteId);
+
+        DateTime inicio = nuevoTurno.FechaHoraInicio;
+        DateTime fin = inicio.Add(tratamiento.DuracionEstimada);
+
+        IReadOnlyList<Turno> turnosDelDia = await _repositorioTurnos.ObtenerTurnosDelDiaAsync(
+            nuevoTurno.OdontologoId,
+            inicio.Date,
+            cancellationToken);
+
+        int nuevoId = await _repositorioTurnos.ObtenerProximoIdAsync(cancellationToken);
+        Turno turno = new Turno(
+            nuevoId,
+            inicio,
+            fin,
+            nuevoTurno.PacienteId,
+            nuevoTurno.OdontologoId,
+            nuevoTurno.TratamientoId);
+
+        AgendaDiaria.ValidarDisponibilidad(turnosDelDia, turno);
+
+        await _repositorioTurnos.AgregarTurnoAsync(turno, cancellationToken);
+        await _unitOfWork.CommitAsync(cancellationToken);
+
+        return turno.Id;
+    }
+
+    public async Task<List<IntervaloTiempoDto>> ConsultarHuecosDisponiblesAsync(
+        ConsultarHuecosRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+
+        if (request.DuracionMinutos <= 0)
+            throw new ArgumentOutOfRangeException(nameof(request), "La duración mínima debe ser mayor a 0 minutos.");
+
+        IReadOnlyList<Turno> turnosDelDia = await _repositorioTurnos.ObtenerTurnosDelDiaAsync(
+            request.OdontologoId,
+            request.Fecha.Date,
+            cancellationToken);
+
+        AgendaDiaria agenda = new AgendaDiaria(request.OdontologoId, request.Fecha.Date, turnosDelDia);
+
+        IEnumerable<IntervaloDeTiempo> huecos = agenda.ObtenerHuecosDisponibles(
+            TimeSpan.FromHours(8),
+            TimeSpan.FromHours(18),
+            TimeSpan.FromMinutes(request.DuracionMinutos));
+
+        List<IntervaloTiempoDto> resultado = new List<IntervaloTiempoDto>();
+
+        foreach (IntervaloDeTiempo hueco in huecos)
+        {
+            resultado.Add(new IntervaloTiempoDto(hueco.Inicio, hueco.Fin));
+        }
+
+        return resultado;
+    }
+
+    public async Task CancelarTurnoAsync(int id, CancellationToken cancellationToken = default)
+    {
+        Turno? turno = await _repositorioTurnos.ObtenerTurnoPorIdAsync(id, cancellationToken);
+
+        if (turno == null)
+            throw new KeyNotFoundException($"No se encontró el turno con ID {id}");
+
+        turno.Cancelar();
+
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            await _repositorioTurnos.ActualizarTurnoAsync(turno, cancellationToken);
+            await _unitOfWork.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    public async Task RegistrarTurnoAsync(TurnoDtoInput turnoDto)
+    {
+        if (turnoDto == null)
+            throw new ArgumentNullException(nameof(turnoDto));
+
+        IEnumerable<Turno> turnosOdontologo = await _repositorioTurnos.ObtenerTodos();
+
         int nuevoId = _repositorioTurnos.IdAutoIncrementoSincrono();
 
-        // 4. Instanciamos la entidad Turno
-        var nuevoTurno = new Turno(
+        Turno nuevoTurno = new Turno(
             nuevoId,
             turnoDto.FechaHoraInicio,
             turnoDto.FechaHoraFin,
             turnoDto.PacienteId,
             turnoDto.OdontologoId,
-            turnoDto.TratamientoId
-        );
+            turnoDto.TratamientoId);
 
-        // 5. Invocación DIRECTA a la regla de tu entidad Turno
-        bool esAgendaValida = Turno.EsValidoLaAgenda(turnosOdontologo, nuevoTurno);
+        AgendaDiaria agendaDelDia = new AgendaDiaria(
+            nuevoTurno.OdontologoId,
+            nuevoTurno.FechaHoraInicio.Date,
+            new List<Turno>());
 
-        if (!esAgendaValida)
+        foreach (Turno turnoExistente in turnosOdontologo)
         {
-            throw new InvalidOperationException("El odontólogo ya posee una cita activa agendada en ese rango horario.");
+            if (turnoExistente.OdontologoId == nuevoTurno.OdontologoId &&
+                turnoExistente.FechaHoraInicio.Date == nuevoTurno.FechaHoraInicio.Date &&
+                turnoExistente.Estado != EstadoTurno.Cancelado)
+            {
+                agendaDelDia.AgregarTurno(turnoExistente);
+            }
         }
 
-        // 6. Persistencia
+        agendaDelDia.ValidarDisponibilidad(nuevoTurno);
+
         await _repositorioTurnos.AgregarTurno(nuevoTurno);
     }
-    finally
-    {
-        _semaforo.Release();
-    }
-}
+
     public async Task<TurnoDtoOutput> ObtenerTurnoPorIdAsync(int id)
     {
-        var t = await _repositorioTurnos.ObtenerTurnoPorId(id);
-        if (t == null) throw new KeyNotFoundException($"No se encontró el turno con ID {id}");
+        Turno? turno = await _repositorioTurnos.ObtenerTurnoPorId(id);
 
-        return new TurnoDtoOutput(t.Id, t.Horario.Inicio, t.PacienteId, t.OdontologoId, t.TratamientoId);
+        if (turno == null)
+            throw new KeyNotFoundException($"No se encontró el turno con ID {id}");
+
+        return new TurnoDtoOutput(
+            turno.Id,
+            turno.Horario.Inicio,
+            turno.PacienteId,
+            turno.OdontologoId,
+            turno.TratamientoId);
     }
 
     public async Task<List<TurnoDtoOutput>> BuscarTurnosAsync(string criterio)
     {
         List<Turno> turnos = await _repositorioTurnos.BuscarTurnos(criterio);
-        var resultado = new List<TurnoDtoOutput>();
+        List<TurnoDtoOutput> resultado = new List<TurnoDtoOutput>();
 
-        foreach (var t in turnos)
+        foreach (Turno turno in turnos)
         {
-            resultado.Add(new TurnoDtoOutput(t.Id, t.Horario.Inicio, t.PacienteId, t.OdontologoId, t.TratamientoId));
+            resultado.Add(new TurnoDtoOutput(
+                turno.Id,
+                turno.Horario.Inicio,
+                turno.PacienteId,
+                turno.OdontologoId,
+                turno.TratamientoId));
         }
 
         return resultado;
@@ -84,57 +201,63 @@ public class TurnosService : ITurnosService
 
     public async Task ActualizarTurnoAsync(int id, TurnoDtoInput turnoEditado)
     {
-        await _semaforo.WaitAsync();
+        if (turnoEditado == null)
+            throw new ArgumentNullException(nameof(turnoEditado));
 
-        try
-        {
-            var existe = await _repositorioTurnos.ObtenerTurnoPorId(id);
-            if (existe == null) throw new KeyNotFoundException($"No se encontró el turno con ID {id}");
+        Turno? existe = await _repositorioTurnos.ObtenerTurnoPorId(id);
 
-            var turnoModificado = new Turno(
-                id,
-                turnoEditado.FechaHoraInicio,
-                turnoEditado.FechaHoraFin,
-                turnoEditado.PacienteId,
-                turnoEditado.OdontologoId,
-                turnoEditado.TratamientoId
-            );
+        if (existe == null)
+            throw new KeyNotFoundException($"No se encontró el turno con ID {id}");
 
-            await _repositorioTurnos.ActualizarTurno(turnoModificado);
-        }
-        finally
-        {
-            _semaforo.Release();
-        }
+        Turno turnoModificado = new Turno(
+            id,
+            turnoEditado.FechaHoraInicio,
+            turnoEditado.FechaHoraFin,
+            turnoEditado.PacienteId,
+            turnoEditado.OdontologoId,
+            turnoEditado.TratamientoId);
+
+        await _repositorioTurnos.ActualizarTurno(turnoModificado);
     }
 
     public async Task<bool> EliminarTurnoAsync(int id)
     {
-        var existe = await _repositorioTurnos.ObtenerTurnoPorId(id);
-        if (existe == null) return false;
+        Turno? existe = await _repositorioTurnos.ObtenerTurnoPorId(id);
+
+        if (existe == null)
+            return false;
 
         await _repositorioTurnos.EliminarTurno(id);
         return true;
     }
-    public async Task<IEnumerable<TurnoDtoOutput>> ObtenerTodosLosTurnosAsync()
-{
-    var turnos = await _repositorioTurnos.ObtenerTodos();
-    var resultado = new List<TurnoDtoOutput>();
 
-    foreach (var t in turnos)
+    public async Task<IEnumerable<TurnoDtoOutput>> ObtenerTodosLosTurnosAsync()
     {
-        resultado.Add(new TurnoDtoOutput(t.Id, t.Horario.Inicio, t.PacienteId, t.OdontologoId, t.TratamientoId));
+        IEnumerable<Turno> turnos = await _repositorioTurnos.ObtenerTodos();
+        List<TurnoDtoOutput> resultado = new List<TurnoDtoOutput>();
+
+        foreach (Turno turno in turnos)
+        {
+            resultado.Add(new TurnoDtoOutput(
+                turno.Id,
+                turno.Horario.Inicio,
+                turno.PacienteId,
+                turno.OdontologoId,
+                turno.TratamientoId));
+        }
+
+        return resultado;
     }
 
-    return resultado;
-}
-
-    public async Task<List<IntervaloDeTiempo>> ObtenerHuecosDisponiblesAsync(int odontologoId, DateTime fecha, TimeSpan duracionRequerida)
+    public async Task<List<IntervaloDeTiempo>> ObtenerHuecosDisponiblesAsync(
+        int odontologoId,
+        DateTime fecha,
+        TimeSpan duracionRequerida)
     {
-        var todos = await _repositorioTurnos.ObtenerTodos();
+        IEnumerable<Turno> todos = await _repositorioTurnos.ObtenerTodos();
         List<Turno> turnosDelDia = new List<Turno>();
 
-        foreach (var turno in todos)
+        foreach (Turno turno in todos)
         {
             if (turno.OdontologoId == odontologoId &&
                 turno.Estado != EstadoTurno.Cancelado &&
@@ -144,7 +267,7 @@ public class TurnosService : ITurnosService
             }
         }
 
-        turnosDelDia.Sort((a, b) => a.Horario.Inicio.CompareTo(b.Horario.Inicio));
+        turnosDelDia.Sort(CompararTurnosPorInicio);
 
         List<IntervaloDeTiempo> huecosEncontrados = new List<IntervaloDeTiempo>();
 
@@ -152,26 +275,28 @@ public class TurnosService : ITurnosService
         DateTime finJornada = fecha.Date.AddHours(18);
         DateTime puntero = inicioJornada;
 
-        foreach (var t in turnosDelDia)
+        foreach (Turno turno in turnosDelDia)
         {
-            if (puntero < t.Horario.Inicio)
+            if (puntero < turno.Horario.Inicio)
             {
-                var hueco = new IntervaloDeTiempo(puntero, t.Horario.Inicio);
+                IntervaloDeTiempo hueco = new IntervaloDeTiempo(puntero, turno.Horario.Inicio);
+
                 if (hueco.Duracion >= duracionRequerida)
                 {
                     huecosEncontrados.Add(hueco);
                 }
             }
 
-            if (t.Horario.Fin > puntero)
+            if (turno.Horario.Fin > puntero)
             {
-                puntero = t.Horario.Fin;
+                puntero = turno.Horario.Fin;
             }
         }
 
         if (puntero < finJornada)
         {
-            var huecoFinal = new IntervaloDeTiempo(puntero, finJornada);
+            IntervaloDeTiempo huecoFinal = new IntervaloDeTiempo(puntero, finJornada);
+
             if (huecoFinal.Duracion >= duracionRequerida)
             {
                 huecosEncontrados.Add(huecoFinal);
@@ -181,44 +306,46 @@ public class TurnosService : ITurnosService
         return huecosEncontrados;
     }
 
-public IntervaloDeTiempo? SeleccionarMejorHuecoBestFit(
-    List<IntervaloDeTiempo> huecos, 
-    TimeSpan duracionRequerida)
-{
-    IntervaloDeTiempo? mejorHueco = null;
-    TimeSpan menorResiduo = TimeSpan.MaxValue;
-
-    for (int i = 0; i < huecos.Count; i++)
+    public IntervaloDeTiempo? SeleccionarMejorHuecoBestFit(
+        List<IntervaloDeTiempo> huecos,
+        TimeSpan duracionRequerida)
     {
-        TimeSpan residuo = huecos[i].Duracion - duracionRequerida;
+        IntervaloDeTiempo? mejorHueco = null;
+        TimeSpan menorResiduo = TimeSpan.MaxValue;
 
-        if (residuo < TimeSpan.Zero)
-            continue;
+        for (int i = 0; i < huecos.Count; i++)
+        {
+            TimeSpan residuo = huecos[i].Duracion - duracionRequerida;
 
-        if (residuo == TimeSpan.Zero)
+            if (residuo < TimeSpan.Zero)
+                continue;
+
+            if (residuo == TimeSpan.Zero)
+            {
+                return new IntervaloDeTiempo(
+                    huecos[i].Inicio,
+                    huecos[i].Inicio.Add(duracionRequerida));
+            }
+
+            if (residuo < menorResiduo)
+            {
+                menorResiduo = residuo;
+                mejorHueco = huecos[i];
+            }
+        }
+
+        if (mejorHueco != null)
         {
             return new IntervaloDeTiempo(
-                huecos[i].Inicio, 
-                huecos[i].Inicio.Add(duracionRequerida));
+                mejorHueco.Inicio,
+                mejorHueco.Inicio.Add(duracionRequerida));
         }
 
-        if (residuo < menorResiduo)
-        {
-            menorResiduo = residuo;
-            mejorHueco = huecos[i];
-        }
+        return null;
     }
 
-    if (mejorHueco != null)
+    private static int CompararTurnosPorInicio(Turno primero, Turno segundo)
     {
-        return new IntervaloDeTiempo(
-            mejorHueco.Inicio, 
-            mejorHueco.Inicio.Add(duracionRequerida));
+        return primero.Horario.Inicio.CompareTo(segundo.Horario.Inicio);
     }
-
-    return null;
-}
-
-
-
 }
