@@ -1,6 +1,7 @@
 namespace ProyectoOdontologia.Tests.Servicios;
 
 using CapaDominio.Entidades;
+using CapaDominio.Excepciones;
 using ProyectoOdontologia.CapaAplicacion.DtosInput;
 using ProyectoOdontologia.CapaAplicacion.DtosOutput;
 using ProyectoOdontologia.CapaAplicacion.ServiciosAplicacion;
@@ -21,7 +22,7 @@ public class InsumosServiceConFakeTests
     public InsumosServiceConFakeTests()
     {
         _fakeRepositorio = new FakeRepositorioInsumos();
-        _servicio = new InsumosService(_fakeRepositorio);
+        _servicio = new InsumosService(_fakeRepositorio, new UnitOfWorkNulo());
     }
 
     [Fact]
@@ -67,11 +68,11 @@ public class InsumosServiceConFakeTests
 
         // Act
         bool eliminado = await _servicio.EliminarInsumoAsync(1);
-        bool eliminadoDeNuevo = await _servicio.EliminarInsumoAsync(1);
 
         // Assert
         Assert.True(eliminado);
-        Assert.False(eliminadoDeNuevo);
+        await Assert.ThrowsAsync<InsumoNoEncontradoException>(
+            () => _servicio.EliminarInsumoAsync(1));
     }
 
     [Fact]

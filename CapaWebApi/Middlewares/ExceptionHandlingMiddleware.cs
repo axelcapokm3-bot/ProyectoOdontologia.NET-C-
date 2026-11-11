@@ -1,11 +1,11 @@
 namespace CapaWebApi.Middlewares;
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using CapaDominio.Excepciones;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 
 public sealed class ExceptionHandlingMiddleware
@@ -46,6 +46,31 @@ public sealed class ExceptionHandlingMiddleware
                     title = "Paciente no encontrado";
                     break;
 
+                case OdontologoNoEncontradoException:
+                    statusCode = StatusCodes.Status404NotFound;
+                    title = "Odontólogo no encontrado";
+                    break;
+
+                case TratamientoNoEncontradoException:
+                    statusCode = StatusCodes.Status404NotFound;
+                    title = "Tratamiento no encontrado";
+                    break;
+
+                case TurnoNoEncontradoException:
+                    statusCode = StatusCodes.Status404NotFound;
+                    title = "Turno no encontrado";
+                    break;
+
+                case InsumoNoEncontradoException:
+                    statusCode = StatusCodes.Status404NotFound;
+                    title = "Insumo no encontrado";
+                    break;
+
+                case StockInsuficienteException:
+                    statusCode = StatusCodes.Status409Conflict;
+                    title = "Stock insuficiente";
+                    break;
+
                 default:
                     statusCode = StatusCodes.Status400BadRequest;
                     title = "Regla de negocio incumplida";
@@ -54,15 +79,6 @@ public sealed class ExceptionHandlingMiddleware
 
             await EscribirProblemDetailsAsync(context, statusCode, title, ex.Message);
         }
-        catch (KeyNotFoundException ex)
-        {
-            _logger.LogWarning(ex, "Recurso no encontrado.");
-            await EscribirProblemDetailsAsync(
-                context,
-                StatusCodes.Status404NotFound,
-                "Recurso no encontrado",
-                ex.Message);
-        }
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Petición inválida.");
@@ -70,6 +86,15 @@ public sealed class ExceptionHandlingMiddleware
                 context,
                 StatusCodes.Status400BadRequest,
                 "Petición inválida",
+                ex.Message);
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+        {
+            _logger.LogWarning(ex, "Conflicto de integridad de datos.");
+            await EscribirProblemDetailsAsync(
+                context,
+                StatusCodes.Status409Conflict,
+                "Conflicto de integridad de datos",
                 ex.Message);
         }
         catch (InvalidOperationException ex)

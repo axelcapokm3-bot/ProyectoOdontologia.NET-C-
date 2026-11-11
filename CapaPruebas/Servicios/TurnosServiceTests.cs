@@ -189,7 +189,7 @@ public class TurnosServiceTests
     }
 
     [Fact]
-    public async Task ObtenerTurnoPorIdAsync_IdInexistente_LanzaKeyNotFoundException()
+    public async Task ObtenerTurnoPorIdAsync_IdInexistente_LanzaTurnoNoEncontradoException()
     {
         // Arrange
         _mockRepositorio
@@ -197,7 +197,7 @@ public class TurnosServiceTests
             .ReturnsAsync((Turno?)null);
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => _servicio.ObtenerTurnoPorIdAsync(99));
+        await Assert.ThrowsAsync<TurnoNoEncontradoException>(() => _servicio.ObtenerTurnoPorIdAsync(99));
     }
 
     [Fact]
@@ -240,7 +240,7 @@ public class TurnosServiceTests
     }
 
     [Fact]
-    public async Task ActualizarTurnoAsync_IdInexistente_LanzaKeyNotFoundExceptionYNoActualiza()
+    public async Task ActualizarTurnoAsync_IdInexistente_LanzaTurnoNoEncontradoExceptionYNoActualiza()
     {
         // Arrange
         _mockRepositorio
@@ -248,7 +248,7 @@ public class TurnosServiceTests
             .ReturnsAsync((Turno?)null);
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => _servicio.ActualizarTurnoAsync(99, CrearTurnoDto()));
+        await Assert.ThrowsAsync<TurnoNoEncontradoException>(() => _servicio.ActualizarTurnoAsync(99, CrearTurnoDto()));
         _mockRepositorio.Verify(r => r.ActualizarTurno(It.IsAny<Turno>()), Times.Never);
     }
 
@@ -272,19 +272,17 @@ public class TurnosServiceTests
     }
 
     [Fact]
-    public async Task EliminarTurnoAsync_IdInexistente_RetornaFalseYNoElmina()
+    public async Task EliminarTurnoAsync_IdInexistente_LanzaTurnoNoEncontradoExceptionYNoElmina()
     {
         // Arrange
         _mockRepositorio
             .Setup(r => r.ObtenerTurnoPorId(It.IsAny<int>()))
             .ReturnsAsync((Turno?)null);
 
-        // Act
-        bool resultado = await _servicio.EliminarTurnoAsync(99);
-
-        // Assert
-        Assert.False(resultado);
+        // Act & Assert
+        await Assert.ThrowsAsync<TurnoNoEncontradoException>(() => _servicio.EliminarTurnoAsync(99));
         _mockRepositorio.Verify(r => r.EliminarTurno(It.IsAny<int>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -410,7 +408,7 @@ public class TurnosServiceTests
     }
 
     [Fact]
-    public async Task RegistrarTurnoAsync_TratamientoInexistente_LanzaKeyNotFoundExceptionYNoPersiste()
+    public async Task RegistrarTurnoAsync_TratamientoInexistente_LanzaTratamientoNoEncontradoYNoPersiste()
     {
         // Arrange
         _mockTratamientos
@@ -426,7 +424,7 @@ public class TurnosServiceTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => _servicio.RegistrarTurnoAsync(dto));
+        await Assert.ThrowsAsync<TratamientoNoEncontradoException>(() => _servicio.RegistrarTurnoAsync(dto));
         _mockRepositorio.Verify(r => r.AgregarTurnoAsync(It.IsAny<Turno>(), It.IsAny<CancellationToken>()), Times.Never);
         _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -533,7 +531,7 @@ public class TurnosServiceTests
     }
 
     [Fact]
-    public async Task CancelarTurnoAsync_TurnoInexistente_LanzaKeyNotFoundException()
+    public async Task CancelarTurnoAsync_TurnoInexistente_LanzaTurnoNoEncontradoException()
     {
         // Arrange
         _mockRepositorio
@@ -541,7 +539,7 @@ public class TurnosServiceTests
             .ReturnsAsync((Turno?)null);
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => _servicio.CancelarTurnoAsync(123));
+        await Assert.ThrowsAsync<TurnoNoEncontradoException>(() => _servicio.CancelarTurnoAsync(123));
         _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 }

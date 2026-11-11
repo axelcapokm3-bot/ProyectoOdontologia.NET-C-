@@ -1,6 +1,7 @@
 namespace ProyectoOdontologia.Tests.Servicios;
 
 using CapaDominio.Entidades;
+using CapaDominio.Excepciones;
 using Moq;
 using ProyectoOdontologia.CapaAplicacion.DtosInput;
 using ProyectoOdontologia.CapaAplicacion.DtosOutput;
@@ -29,7 +30,11 @@ public class PacienteServiceTests
         _mockRepositorio
             .Setup(r => r.IdAutoIncrementoSincrono())
             .Returns(1);
-        _servicio = new PacienteService(_mockRepositorio.Object);
+        _servicio = new PacienteService(
+            _mockRepositorio.Object,
+            Mock.Of<IRepositorioUsuario>(),
+            Mock.Of<IPasswordHasher>(),
+            new UnitOfWorkNulo());
     }
 
     private static PacienteDtoInput CrearPacienteDto(string email = "juan.perez@email.com", string telefono = "3515551234")
@@ -140,7 +145,7 @@ public class PacienteServiceTests
     }
 
     [Fact]
-    public async Task ActualizarPacienteAsync_IdInexistenteSinDuplicados_LanzaKeyNotFoundException()
+    public async Task ActualizarPacienteAsync_IdInexistenteSinDuplicados_LanzaPacienteNoEncontradoException()
     {
         // Arrange
         _mockRepositorio
@@ -148,7 +153,7 @@ public class PacienteServiceTests
             .ReturnsAsync((Paciente?)null);
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => _servicio.ActualizarPacienteAsync(99, CrearPacienteDto()));
+        await Assert.ThrowsAsync<PacienteNoEncontradoException>(() => _servicio.ActualizarPacienteAsync(99, CrearPacienteDto()));
         _mockRepositorio.Verify(r => r.ActualizarPaciente(It.IsAny<Paciente>()), Times.Never);
     }
 }

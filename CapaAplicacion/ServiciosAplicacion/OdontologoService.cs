@@ -4,26 +4,28 @@ using global::CapaAplicacion.Interfaces;
 using global::ProyectoOdontologia.CapaAplicacion.DtosInput;
 using global::ProyectoOdontologia.CapaAplicacion.DtosOutput;
 using global::CapaDominio.Entidades;
+using CapaDominio.Excepciones;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using System;
 
 public class OdontologoService : IOdontologoService
 {
     private readonly IRepositorioOdontologo _repositorioOdontologo;
     private readonly IRepositorioUsuario? _repositorioUsuario;
     private readonly IPasswordHasher? _passwordHasher;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public OdontologoService(IRepositorioOdontologo repositorioOdontologo)
-    {
-        _repositorioOdontologo = repositorioOdontologo;
-    }
-
-    public OdontologoService(IRepositorioOdontologo repositorioOdontologo, IRepositorioUsuario repositorioUsuario, IPasswordHasher passwordHasher)
+    public OdontologoService(
+        IRepositorioOdontologo repositorioOdontologo,
+        IRepositorioUsuario repositorioUsuario,
+        IPasswordHasher passwordHasher,
+        IUnitOfWork unitOfWork)
     {
         _repositorioOdontologo = repositorioOdontologo;
         _repositorioUsuario = repositorioUsuario;
         _passwordHasher = passwordHasher;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task RegistrarOdontologoAsync(OdontologoInputDto odontologo)
@@ -33,40 +35,36 @@ public class OdontologoService : IOdontologoService
             throw new ArgumentException("La matrícula ya está registrada o es inválida.");
         }
 
+        await _unitOfWork.BeginTransactionAsync();
+
         int idOdontologo = _repositorioOdontologo.IdAutoIncrementoSincrono();
         int? usuarioId = odontologo.UsuarioId;
+
         if (usuarioId is null && !string.IsNullOrWhiteSpace(odontologo.NombreUsuario) && !string.IsNullOrWhiteSpace(odontologo.Password))
         {
             usuarioId = await CrearUsuarioOdontologoAsync(odontologo.NombreUsuario, odontologo.Matricula, odontologo.Password);
         }
 
-        var nuevoOdontologo = new Odontologo(
+        Odontologo nuevoOdontologo = new Odontologo(
             idOdontologo,
             odontologo.Nombre,
             odontologo.Matricula,
             odontologo.Especialidad,
             odontologo.Telefono,
-            usuarioId
-        );
+            usuarioId);
 
         await _repositorioOdontologo.AgregarOdontologo(nuevoOdontologo);
+        await _unitOfWork.CommitAsync();
     }
 
     public async Task<IEnumerable<OdontologoOutputDto>> ObtenerTodosLosOdontologosAsync()
     {
-        var odontologos = await _repositorioOdontologo.ObtenerTodos();
-        var resultado = new List<OdontologoOutputDto>();
+        IEnumerable<Odontologo> odontologos = await _repositorioOdontologo.ObtenerTodos();
+        List<OdontologoOutputDto> resultado = new List<OdontologoOutputDto>();
 
-        foreach (var o in odontologos)
+        foreach (Odontologo odontologo in odontologos)
         {
-            var dto = new OdontologoOutputDto(
-                o.Id,
-                o.Nombre,
-                o.Matricula,
-                o.Especialidad,
-                o.Telefono
-            );
-            resultado.Add(dto);
+            resultado.Add(CrearDto(odontologo));
         }
 
         return resultado;
@@ -74,18 +72,14 @@ public class OdontologoService : IOdontologoService
 
     public async Task<OdontologoOutputDto> ObtenerOdontologoPorIdAsync(int id)
     {
-        var o = await _repositorioOdontologo.ObtenerOdontologoPorId(id);
-        if (o == null) throw new KeyNotFoundException($"No se encontró el odontólogo con ID {id}");
+        Odontologo? odontologo = await _repositorioOdontologo.ObtenerOdontologoPorId(id);
 
-        var dto = new OdontologoOutputDto(
-            o.Id,
-            o.Nombre,
-            o.Matricula,
-            o.Especialidad,
-            o.Telefono
-        );
+        if (odontologo == null)
+        {
+            throw new OdontologoNoEncontradoException(id);
+        }
 
-        return dto;
+        return CrearDto(odontologo);
     }
 
     public async Task<List<OdontologoOutputDto>> BuscarOdontologosAsync(string criterio)
@@ -93,16 +87,9 @@ public class OdontologoService : IOdontologoService
         List<Odontologo> odontologos = await _repositorioOdontologo.BuscarOdontologos(criterio);
         List<OdontologoOutputDto> resultado = new List<OdontologoOutputDto>();
 
-        foreach (Odontologo o in odontologos)
+        foreach (Odontologo odontologo in odontologos)
         {
-            var dto = new OdontologoOutputDto(
-                o.Id,
-                o.Nombre,
-                o.Matricula,
-                o.Especialidad,
-                o.Telefono
-            );
-            resultado.Add(dto);
+            resultado.Add(CrearDto(odontologo));
         }
 
         return resultado;
@@ -110,61 +97,88 @@ public class OdontologoService : IOdontologoService
 
     public async Task ActualizarOdontologoAsync(int id, OdontologoInputDto odontologoDto)
     {
-        var odontologoExistente = await _repositorioOdontologo.ObtenerOdontologoPorId(id);
+        await _unitOfWork.BeginTransactionAsync();
+
+        Odontologo? odontologoExistente = await _repositorioOdontologo.ObtenerOdontologoPorId(id);
 
         if (odontologoExistente == null)
         {
-            throw new KeyNotFoundException($"No se encontró el odontólogo con ID {id}");
+            throw new OdontologoNoEncontradoException(id);
         }
 
-        var odontologoActualizado = new Odontologo(
+        Odontologo odontologoActualizado = new Odontologo(
             id,
             odontologoDto.Nombre,
             odontologoDto.Matricula,
             odontologoDto.Especialidad,
             odontologoDto.Telefono,
-            odontologoDto.UsuarioId
-        );
+            odontologoDto.UsuarioId);
 
         await _repositorioOdontologo.ActualizarOdontologo(odontologoActualizado);
+        await _unitOfWork.CommitAsync();
     }
 
     public async Task<bool> EliminarOdontologoAsync(int id)
     {
-        var existe = await _repositorioOdontologo.ObtenerOdontologoPorId(id);
-        if (existe == null) return false;
+        await _unitOfWork.BeginTransactionAsync();
 
-        await _repositorioOdontologo.EliminarOdontologo(id);
+        Odontologo? existente = await _repositorioOdontologo.ObtenerOdontologoPorId(id);
+
+        if (existente == null)
+        {
+            throw new OdontologoNoEncontradoException(id);
+        }
+
+        bool eliminado = await _repositorioOdontologo.EliminarOdontologo(id);
+
+        if (!eliminado)
+        {
+            throw new OdontologoNoEncontradoException(id);
+        }
+
+        await _unitOfWork.CommitAsync();
+
         return true;
     }
 
     public async Task<bool> ValidadorMatricula(OdontologoInputDto odontologo)
     {
-        if (string.IsNullOrWhiteSpace(odontologo.Matricula)) return false;
-
-        var lista = await _repositorioOdontologo.ObtenerTodos();
-        foreach (var o in lista)
+        if (string.IsNullOrWhiteSpace(odontologo.Matricula))
         {
-            if (o.Matricula.Equals(odontologo.Matricula, StringComparison.OrdinalIgnoreCase))
+            return false;
+        }
+
+        IEnumerable<Odontologo> lista = await _repositorioOdontologo.ObtenerTodos();
+
+        foreach (Odontologo existente in lista)
+        {
+            if (existente.Matricula.Equals(odontologo.Matricula, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
         }
+
         return true;
     }
 
     private async Task<int> CrearUsuarioOdontologoAsync(string nombreUsuario, string email, string password)
     {
         if (_repositorioUsuario is null || _passwordHasher is null)
+        {
             throw new InvalidOperationException("El registro automático de usuario no está configurado.");
+        }
 
         if (await _repositorioUsuario.ObtenerPorNombreUsuarioAsync(nombreUsuario) is not null)
+        {
             throw new InvalidOperationException("El nombre de usuario ya existe.");
+        }
 
         if (await _repositorioUsuario.ObtenerPorEmailAsync(email) is not null)
+        {
             throw new InvalidOperationException("El email de usuario ya existe.");
+        }
 
-        var usuario = new Usuario(
+        Usuario usuario = new Usuario(
             _repositorioUsuario.IdAutoIncrementoSincrono(),
             nombreUsuario,
             email,
@@ -172,6 +186,17 @@ public class OdontologoService : IOdontologoService
             RolUsuario.Odontologo);
 
         await _repositorioUsuario.AgregarAsync(usuario);
+
         return usuario.Id;
+    }
+
+    private static OdontologoOutputDto CrearDto(Odontologo odontologo)
+    {
+        return new OdontologoOutputDto(
+            odontologo.Id,
+            odontologo.Nombre,
+            odontologo.Matricula,
+            odontologo.Especialidad,
+            odontologo.Telefono);
     }
 }

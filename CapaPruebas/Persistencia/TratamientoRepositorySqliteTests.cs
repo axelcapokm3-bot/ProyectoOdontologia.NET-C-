@@ -6,12 +6,25 @@ using Dapper;
 
 public class TratamientoRepositorySqliteTests
 {
+    private static async Task CrearInsumoAsync(InsumoRepositorySqlite repositorio, int id)
+    {
+        await repositorio.AgregarInsumo(
+            new Insumo(id, $"Insumo {id}", CategoriaInsumo.Anestesia, 100));
+    }
+
     [Fact]
     public async Task AgregarTratamiento_TratamientoConInsumos_PersisteDuracionCostoEInsumos()
     {
         // Arrange
         await using SqliteTestDatabase baseDeDatos = new();
         await baseDeDatos.InicializarAsync();
+
+        await using (UnitOfWorkSqlite preparacion = baseDeDatos.CrearUnitOfWork())
+        {
+            InsumoRepositorySqlite insumosRepositorio = new InsumoRepositorySqlite(preparacion);
+            await CrearInsumoAsync(insumosRepositorio, 10);
+            await CrearInsumoAsync(insumosRepositorio, 20);
+        }
 
         List<TratamientoInsumo> insumos = new List<TratamientoInsumo>
         {
@@ -56,6 +69,10 @@ public class TratamientoRepositorySqliteTests
         await baseDeDatos.InicializarAsync();
         await using UnitOfWorkSqlite unitOfWork = baseDeDatos.CrearUnitOfWork();
         TratamientoRepositorySqlite repositorio = new TratamientoRepositorySqlite(unitOfWork);
+        InsumoRepositorySqlite insumosRepositorio = new InsumoRepositorySqlite(unitOfWork);
+
+        await CrearInsumoAsync(insumosRepositorio, 10);
+        await CrearInsumoAsync(insumosRepositorio, 20);
 
         Tratamiento original = new Tratamiento(
             1,
@@ -95,6 +112,9 @@ public class TratamientoRepositorySqliteTests
         await baseDeDatos.InicializarAsync();
         await using UnitOfWorkSqlite unitOfWork = baseDeDatos.CrearUnitOfWork();
         TratamientoRepositorySqlite repositorio = new TratamientoRepositorySqlite(unitOfWork);
+        InsumoRepositorySqlite insumosRepositorio = new InsumoRepositorySqlite(unitOfWork);
+
+        await CrearInsumoAsync(insumosRepositorio, 10);
 
         await repositorio.AgregarTratamiento(
             new Tratamiento(

@@ -28,3 +28,8 @@ Aprendizajes para evitar errores recurrentes. Breves y accionables.
 - **Middleware ASP.NET Core:** `WriteAsJsonAsync` con `contentType` y `cancellationToken` requiere pasar también `options: null`; de lo contrario no resuelve la sobrecarga.
 - **Transacciones y errores de dominio:** con `BeginTransactionAsync` al inicio, no hace falta `catch` en el servicio; el `DisposeAsync` del UoW revierte la transacción abierta. En pruebas de integración, usar un UoW nuevo por llamada para no reutilizar una transacción fallida.
 - **Pruebas de middleware:** `DefaultHttpContext` + `NullLogger<T>` + `JsonSerializer.DeserializeAsync<ProblemDetails>` permiten validar estado, content type y detalle sin servidor; no exponer el mensaje de una excepción no controlada en el 500.
+- **Insumos y stock:** reconstruir `Insumo` con el constructor completo para conservar `StockReservado`, `PuntoPedido`, `StockSeguridad` y `StockMaximo`; usar `Actualizar` para editar sin reiniciar esos valores.
+- **Auditoría de stock:** el `UPDATE Insumos` y el `INSERT MovimientosStock` deben compartir la misma transacción `BEGIN IMMEDIATE`; el rollback debe revertir ambos.
+- **FK con datos existentes:** `CREATE TABLE IF NOT EXISTS` no agrega FK a tablas ya creadas. En bases previas a esta fase hay que recrear/migrar `TratamientoInsumos` para obtener `InsumoId ON DELETE RESTRICT`.
+- **Pruebas de repositorios con FK:** sembrar los insumos antes de insertar `TratamientoInsumos`; usar `SqliteException.SqliteErrorCode == 19` para verificar la restricción.
+- **Usuarios fuera de SQLite:** las altas automáticas de usuario en `PacienteService`/`OdontologoService` no participan de la transacción SQLite; no prometer atomicidad entre usuario y paciente/odontólogo.

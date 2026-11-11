@@ -26,17 +26,39 @@ SELECT TratamientoId, InsumoId, CantidadUsada
 FROM TratamientoInsumos
 ORDER BY TratamientoId, InsumoId;";
 
-        List<Tratamiento> tratamientos = (await _unitOfWork.Connection.QueryAsync<Tratamiento>(
-            new CommandDefinition(sqlTratamientos, transaction: _unitOfWork.Transaction))).ToList();
+        IEnumerable<Tratamiento> resultadoTratamientos = await _unitOfWork.Connection.QueryAsync<Tratamiento>(
+            new CommandDefinition(sqlTratamientos, transaction: _unitOfWork.Transaction));
 
-        List<TratamientoInsumo> insumos = (await _unitOfWork.Connection.QueryAsync<TratamientoInsumo>(
-            new CommandDefinition(sqlInsumos, transaction: _unitOfWork.Transaction))).ToList();
+        IEnumerable<TratamientoInsumo> resultadoInsumos = await _unitOfWork.Connection.QueryAsync<TratamientoInsumo>(
+            new CommandDefinition(sqlInsumos, transaction: _unitOfWork.Transaction));
 
-        ILookup<int, TratamientoInsumo> insumosPorTratamiento = insumos.ToLookup(i => i.TratamientoId);
+        List<Tratamiento> tratamientos = new List<Tratamiento>();
+        Dictionary<int, List<TratamientoInsumo>> insumosPorTratamiento = new Dictionary<int, List<TratamientoInsumo>>();
 
-        return tratamientos
-            .Select(t => AgregarInsumos(t, insumosPorTratamiento[t.Id]))
-            .ToList();
+        foreach (Tratamiento tratamiento in resultadoTratamientos)
+        {
+            tratamientos.Add(tratamiento);
+        }
+
+        foreach (TratamientoInsumo insumo in resultadoInsumos)
+        {
+            if (!insumosPorTratamiento.ContainsKey(insumo.TratamientoId))
+            {
+                insumosPorTratamiento[insumo.TratamientoId] = new List<TratamientoInsumo>();
+            }
+
+            insumosPorTratamiento[insumo.TratamientoId].Add(insumo);
+        }
+
+        foreach (Tratamiento tratamiento in tratamientos)
+        {
+            if (insumosPorTratamiento.ContainsKey(tratamiento.Id))
+            {
+                AgregarInsumos(tratamiento, insumosPorTratamiento[tratamiento.Id]);
+            }
+        }
+
+        return tratamientos;
     }
 
     public Task<Tratamiento?> ObtenerTratamientoPorId(int id)
@@ -78,26 +100,51 @@ FROM TratamientoInsumos
 WHERE TratamientoId IN @Ids
 ORDER BY TratamientoId, InsumoId;";
 
-        List<Tratamiento> tratamientos = (await _unitOfWork.Connection.QueryAsync<Tratamiento>(
+        IEnumerable<Tratamiento> resultadoTratamientos = await _unitOfWork.Connection.QueryAsync<Tratamiento>(
             new CommandDefinition(
                 sql,
-                new { Texto = busqueda, Patron = $"%{busqueda}%" },
-                _unitOfWork.Transaction))).ToList();
+                new { Texto = busqueda, Patron = "%" + busqueda + "%" },
+                _unitOfWork.Transaction));
 
-        List<int> ids = tratamientos.Select(t => t.Id).ToList();
-        List<TratamientoInsumo> insumos = ids.Count == 0
-            ? new List<TratamientoInsumo>()
-            : (await _unitOfWork.Connection.QueryAsync<TratamientoInsumo>(
+        List<Tratamiento> tratamientos = new List<Tratamiento>();
+        List<int> ids = new List<int>();
+
+        foreach (Tratamiento tratamiento in resultadoTratamientos)
+        {
+            tratamientos.Add(tratamiento);
+            ids.Add(tratamiento.Id);
+        }
+
+        Dictionary<int, List<TratamientoInsumo>> insumosPorTratamiento = new Dictionary<int, List<TratamientoInsumo>>();
+
+        if (ids.Count > 0)
+        {
+            IEnumerable<TratamientoInsumo> resultadoInsumos = await _unitOfWork.Connection.QueryAsync<TratamientoInsumo>(
                 new CommandDefinition(
                     sqlInsumos,
                     new { Ids = ids },
-                    _unitOfWork.Transaction))).ToList();
+                    _unitOfWork.Transaction));
 
-        ILookup<int, TratamientoInsumo> insumosPorTratamiento = insumos.ToLookup(i => i.TratamientoId);
+            foreach (TratamientoInsumo insumo in resultadoInsumos)
+            {
+                if (!insumosPorTratamiento.ContainsKey(insumo.TratamientoId))
+                {
+                    insumosPorTratamiento[insumo.TratamientoId] = new List<TratamientoInsumo>();
+                }
 
-        return tratamientos
-            .Select(t => AgregarInsumos(t, insumosPorTratamiento[t.Id]))
-            .ToList();
+                insumosPorTratamiento[insumo.TratamientoId].Add(insumo);
+            }
+        }
+
+        foreach (Tratamiento tratamiento in tratamientos)
+        {
+            if (insumosPorTratamiento.ContainsKey(tratamiento.Id))
+            {
+                AgregarInsumos(tratamiento, insumosPorTratamiento[tratamiento.Id]);
+            }
+        }
+
+        return tratamientos;
     }
 
     public async Task AgregarTratamiento(Tratamiento tratamiento)

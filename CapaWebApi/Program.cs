@@ -12,7 +12,6 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<IRepositorioInsumos, RepositorioInsumos>();
 builder.Services.AddSingleton<IRepositorioUsuario, RepositorioUsuario>();
 
 string connectionString = builder.Configuration.GetConnectionString("ClinicaDb")
@@ -20,6 +19,7 @@ string connectionString = builder.Configuration.GetConnectionString("ClinicaDb")
 
 builder.Services.AddSingleton<IDbConnectionFactory>(new SqliteConnectionFactory(connectionString));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWorkSqlite>();
+builder.Services.AddScoped<IRepositorioInsumos, InsumoRepositorySqlite>();
 builder.Services.AddScoped<IRepositorioTratamiento, TratamientoRepositorySqlite>();
 builder.Services.AddScoped<IRepositorioTurnos, TurnoRepositorySqlite>();
 builder.Services.AddScoped<IRepositorioPaciente, PacienteRepositorySqlite>();

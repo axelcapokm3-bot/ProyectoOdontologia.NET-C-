@@ -4,27 +4,28 @@ using global::CapaAplicacion.Interfaces;
 using global::ProyectoOdontologia.CapaAplicacion.DtosInput;
 using global::ProyectoOdontologia.CapaAplicacion.DtosOutput;
 using global::CapaDominio.Entidades;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using CapaDominio.Excepciones;
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 public class PacienteService : IPacienteService
 {
     private readonly IRepositorioPaciente _repositorioPaciente;
     private readonly IRepositorioUsuario? _repositorioUsuario;
     private readonly IPasswordHasher? _passwordHasher;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public PacienteService(IRepositorioPaciente repositorioPaciente)
-    {
-        _repositorioPaciente = repositorioPaciente;
-    }
-
-    public PacienteService(IRepositorioPaciente repositorioPaciente, IRepositorioUsuario repositorioUsuario, IPasswordHasher passwordHasher)
+    public PacienteService(
+        IRepositorioPaciente repositorioPaciente,
+        IRepositorioUsuario repositorioUsuario,
+        IPasswordHasher passwordHasher,
+        IUnitOfWork unitOfWork)
     {
         _repositorioPaciente = repositorioPaciente;
         _repositorioUsuario = repositorioUsuario;
         _passwordHasher = passwordHasher;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task RegistrarPacienteAsync(PacienteDtoInput paciente)
@@ -34,22 +35,24 @@ public class PacienteService : IPacienteService
             throw new ArgumentException("El nombre del paciente contiene caracteres no válidos o está vacío.");
         }
 
+        await _unitOfWork.BeginTransactionAsync();
+
         int idPaciente = _repositorioPaciente.IdAutoIncrementoSincrono();
         int? usuarioId = paciente.UsuarioId;
+
         if (usuarioId is null && !string.IsNullOrWhiteSpace(paciente.NombreUsuario) && !string.IsNullOrWhiteSpace(paciente.Password))
         {
             usuarioId = await CrearUsuarioPacienteAsync(paciente.NombreUsuario, paciente.Email, paciente.Password);
         }
 
-        var nuevoPaciente = new Paciente(
+        Paciente nuevoPaciente = new Paciente(
             idPaciente,
             paciente.Nombre,
             paciente.Apellido,
             paciente.FechaNacimiento,
             paciente.Telefono,
             paciente.Email,
-            usuarioId
-        );
+            usuarioId);
 
         if (!await ValidadorDeEmail(nuevoPaciente))
         {
@@ -62,15 +65,19 @@ public class PacienteService : IPacienteService
         }
 
         await _repositorioPaciente.AgregarPaciente(nuevoPaciente);
+        await _unitOfWork.CommitAsync();
     }
 
     public bool ValidadorNombre(PacienteDtoInput paciente)
     {
-        if (string.IsNullOrWhiteSpace(paciente.Nombre)) return false;
-
-        foreach (char Nombre in paciente.Nombre)
+        if (string.IsNullOrWhiteSpace(paciente.Nombre))
         {
-            if (!char.IsLetter(Nombre) && !char.IsWhiteSpace(Nombre))
+            return false;
+        }
+
+        foreach (char caracter in paciente.Nombre)
+        {
+            if (!char.IsLetter(caracter) && !char.IsWhiteSpace(caracter))
             {
                 return false;
             }
@@ -81,13 +88,13 @@ public class PacienteService : IPacienteService
 
     public async Task<bool> ValidadorDeEmail(Paciente paciente)
     {
-        var pacientes = await _repositorioPaciente.ObtenerTodos();
+        IEnumerable<Paciente> pacientes = await _repositorioPaciente.ObtenerTodos();
 
-        foreach (var p in pacientes)
+        foreach (Paciente existente in pacientes)
         {
-            if (paciente.Id != p.Id)
+            if (paciente.Id != existente.Id)
             {
-                if (paciente.Email.Equals(p.Email, StringComparison.OrdinalIgnoreCase))
+                if (paciente.Email.Equals(existente.Email, StringComparison.OrdinalIgnoreCase))
                 {
                     return false;
                 }
@@ -99,39 +106,30 @@ public class PacienteService : IPacienteService
 
     public async Task<bool> ValidarTelefono(Paciente paciente)
     {
-        var pacientes = await _repositorioPaciente.ObtenerTodos();
+        IEnumerable<Paciente> pacientes = await _repositorioPaciente.ObtenerTodos();
 
-        foreach (var p in pacientes)
+        foreach (Paciente existente in pacientes)
         {
-            if (paciente.Id != p.Id)
+            if (paciente.Id != existente.Id)
             {
-                if (p.Telefono.Equals(paciente.Telefono))
+                if (existente.Telefono.Equals(paciente.Telefono))
                 {
                     return false;
                 }
             }
         }
+
         return true;
     }
 
     public async Task<IEnumerable<PacienteDtoOutput>> ObtenerTodosLosPacientesAsync()
     {
-        var pacientes = await _repositorioPaciente.ObtenerTodos();
+        IEnumerable<Paciente> pacientes = await _repositorioPaciente.ObtenerTodos();
+        List<PacienteDtoOutput> resultado = new List<PacienteDtoOutput>();
 
-        var resultado = new List<PacienteDtoOutput>();
-
-        foreach (var p in pacientes)
+        foreach (Paciente paciente in pacientes)
         {
-            var dto = new PacienteDtoOutput(
-                p.Id,
-                p.Nombre,
-                p.Apellido,
-                p.Email,
-                p.FechaNacimiento,
-                p.Telefono
-            );
-
-            resultado.Add(dto);
+            resultado.Add(CrearDto(paciente));
         }
 
         return resultado;
@@ -142,17 +140,9 @@ public class PacienteService : IPacienteService
         List<Paciente> pacientes = await _repositorioPaciente.BuscarPacientes(criterio);
         List<PacienteDtoOutput> resultado = new List<PacienteDtoOutput>();
 
-        foreach (Paciente p in pacientes)
+        foreach (Paciente paciente in pacientes)
         {
-            var dto = new PacienteDtoOutput(
-                p.Id,
-                p.Nombre,
-                p.Apellido,
-                p.Email,
-                p.FechaNacimiento,
-                p.Telefono
-            );
-            resultado.Add(dto);
+            resultado.Add(CrearDto(paciente));
         }
 
         return resultado;
@@ -160,32 +150,28 @@ public class PacienteService : IPacienteService
 
     public async Task<PacienteDtoOutput> ObtenerPacientePorIdAsync(int id)
     {
-        var p = await _repositorioPaciente.ObtenerPacientePorId(id);
-        if (p == null) throw new KeyNotFoundException($"No se encontró el paciente con ID {id}");
+        Paciente? paciente = await _repositorioPaciente.ObtenerPacientePorId(id);
 
-        var dto = new PacienteDtoOutput(
-            p.Id,
-            p.Nombre,
-            p.Apellido,
-            p.Email,
-            p.FechaNacimiento,
-            p.Telefono
-        );
+        if (paciente == null)
+        {
+            throw new PacienteNoEncontradoException(id);
+        }
 
-        return dto;
+        return CrearDto(paciente);
     }
 
     public async Task ActualizarPacienteAsync(int id, PacienteDtoInput pacienteEditado)
     {
-        var pacienteModificado = new Paciente(
+        await _unitOfWork.BeginTransactionAsync();
+
+        Paciente pacienteModificado = new Paciente(
             id,
             pacienteEditado.Nombre,
             pacienteEditado.Apellido,
             pacienteEditado.FechaNacimiento,
             pacienteEditado.Telefono,
             pacienteEditado.Email,
-            pacienteEditado.UsuarioId
-        );
+            pacienteEditado.UsuarioId);
 
         if (!await ValidadorDeEmail(pacienteModificado))
         {
@@ -197,33 +183,58 @@ public class PacienteService : IPacienteService
             throw new InvalidOperationException($"El teléfono '{pacienteEditado.Telefono}' ya está registrado por otro paciente.");
         }
 
-        var existe = await _repositorioPaciente.ObtenerPacientePorId(id);
-        if (existe == null) throw new KeyNotFoundException($"No se encontró el paciente con ID {id}");
+        Paciente? existente = await _repositorioPaciente.ObtenerPacientePorId(id);
+
+        if (existente == null)
+        {
+            throw new PacienteNoEncontradoException(id);
+        }
 
         await _repositorioPaciente.ActualizarPaciente(pacienteModificado);
+        await _unitOfWork.CommitAsync();
     }
 
     public async Task<bool> EliminarPacienteAsync(int id)
     {
-        var existe = await _repositorioPaciente.ObtenerPacientePorId(id);
-        if (existe == null) return false;
+        await _unitOfWork.BeginTransactionAsync();
 
-        await _repositorioPaciente.EliminarPaciente(id);
+        Paciente? existente = await _repositorioPaciente.ObtenerPacientePorId(id);
+
+        if (existente == null)
+        {
+            throw new PacienteNoEncontradoException(id);
+        }
+
+        bool eliminado = await _repositorioPaciente.EliminarPaciente(id);
+
+        if (!eliminado)
+        {
+            throw new PacienteNoEncontradoException(id);
+        }
+
+        await _unitOfWork.CommitAsync();
+
         return true;
     }
 
     private async Task<int> CrearUsuarioPacienteAsync(string nombreUsuario, string email, string password)
     {
         if (_repositorioUsuario is null || _passwordHasher is null)
+        {
             throw new InvalidOperationException("El registro automático de usuario no está configurado.");
+        }
 
         if (await _repositorioUsuario.ObtenerPorNombreUsuarioAsync(nombreUsuario) is not null)
+        {
             throw new InvalidOperationException("El nombre de usuario ya existe.");
+        }
 
         if (await _repositorioUsuario.ObtenerPorEmailAsync(email) is not null)
+        {
             throw new InvalidOperationException("El email de usuario ya existe.");
+        }
 
-        var usuario = new Usuario(
+        Usuario usuario = new Usuario(
             _repositorioUsuario.IdAutoIncrementoSincrono(),
             nombreUsuario,
             email,
@@ -231,6 +242,18 @@ public class PacienteService : IPacienteService
             RolUsuario.Paciente);
 
         await _repositorioUsuario.AgregarAsync(usuario);
+
         return usuario.Id;
+    }
+
+    private static PacienteDtoOutput CrearDto(Paciente paciente)
+    {
+        return new PacienteDtoOutput(
+            paciente.Id,
+            paciente.Nombre,
+            paciente.Apellido,
+            paciente.Email,
+            paciente.FechaNacimiento,
+            paciente.Telefono);
     }
 }

@@ -29,7 +29,6 @@ namespace CapaWebApi.Controllers
         public async Task<ActionResult<InsumoDtosOutput>> ObtenerPorId(int id)
         {
             var dto = await _insumosService.ObtenerInsumoPorIdAsync(id);
-            if (dto == null) return NotFound();
             return Ok(dto);
         }
 

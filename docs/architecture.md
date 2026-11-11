@@ -59,7 +59,7 @@ CapaAplicacion/
   └─ Seguridad/             (AuthService, JwtProvider abstracción)
 
 CapaInfraestructura/
-  ├─ Implementacion.cs/     (repositorios legacy en memoria para pruebas)
+  ├─ Implementacion.cs/     (repositorios legacy en memoria; Insumos solo para pruebas)
   ├─ Persistencia/          (SQLite: factory, UnitOfWork, repositorios Dapper, inicializador)
   └─ Servicios/             (PasswordHasherBCrypt, JwtProvider)
 
@@ -84,15 +84,23 @@ CapaWebApi/
   para aplicar bloqueo pesimista a nivel de archivo; confirma con `COMMIT;` y revierte con `ROLLBACK;`.
   No crea `IDbTransaction`; expone `TransaccionActiva` para que los repositorios no confirmen
   transacciones ajenas.
-- `TurnoRepositorySqlite` y `TratamientoRepositorySqlite` escriben SQL explícito y
-  usan Dapper (`QueryAsync<T>`, `ExecuteAsync`, `ExecuteScalarAsync`) con parámetros anónimos.
+- `TurnoRepositorySqlite`, `TratamientoRepositorySqlite` e `InsumoRepositorySqlite` escriben SQL
+  explícito y usan Dapper (`QueryAsync<T>`, `ExecuteAsync`, `ExecuteScalarAsync`) con parámetros
+  anónimos.
+- `InsumoRepositorySqlite` rehidrata todos los campos de stock y registra cada cambio de `Stock`
+  en `MovimientosStock` dentro de la misma transacción `BEGIN IMMEDIATE`.
 - `DatabaseInitializer` crea al arranque las tablas `Pacientes`, `Odontologos`, `Insumos`,
-  `Tratamientos`, `TratamientoInsumos` y `Turnos`, con `CREATE TABLE IF NOT EXISTS`, e índices.
+  `Tratamientos`, `TratamientoInsumos`, `MovimientosStock` y `Turnos`, con
+  `CREATE TABLE IF NOT EXISTS`, e índices.
 - Dapper mapea directamente a `Turno` y `Tratamiento` con type handlers (`DateTime` como TEXT,
   `decimal` invariante, `TimeSpan` como ticks) y type maps que fuerzan los constructores ricos;
-  las invariantes del dominio se validan durante la materialización.
-- Las claves foráneas se limitan a `Tratamientos`/`TratamientoInsumos` mientras `Pacientes`,
-  `Odontologos` e `Insumos` sigan usando repositorios en memoria.
+  `Insumo` se materializa desde una fila DTO interna (`InsumoRow`) con su constructor completo.
+  Las invariantes del dominio se validan durante la materialización.
+- `TratamientoInsumos` aplica `ON DELETE RESTRICT` hacia `Insumos` para impedir eliminar insumos
+  usados en tratamientos. `MovimientosStock` también referencia `Insumos` con `RESTRICT`.
+- `Pacientes`, `Odontologos` y `Usuarios`/`RefreshTokens` siguen en repositorios en memoria; no
+  participan de la transacción SQLite. La creación automática de usuarios en `PacienteService` y
+  `OdontologoService` no es atómica respecto del alta del paciente/odontólogo.
 
 ## Restricciones arquitectónicas del proyecto
 

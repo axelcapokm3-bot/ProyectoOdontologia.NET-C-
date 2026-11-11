@@ -30,10 +30,13 @@ public class TurnoRepositorySqliteTests
         await using UnitOfWorkSqlite unitOfWork = baseDeDatos.CrearUnitOfWork();
 
         IEnumerable<string> tablas = await unitOfWork.Connection.QueryAsync<string>(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('Turnos', 'Pacientes', 'Odontologos', 'Tratamientos', 'Insumos', 'TratamientoInsumos');");
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('Turnos', 'Pacientes', 'Odontologos', 'Tratamientos', 'Insumos', 'TratamientoInsumos', 'MovimientosStock');");
 
         string? indice = await unitOfWork.Connection.ExecuteScalarAsync<string>(
             "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'IX_Turnos_OdontologoId_FechaHoraInicio';");
+
+        string? indiceMovimientos = await unitOfWork.Connection.ExecuteScalarAsync<string>(
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'IX_MovimientosStock_InsumoId_FechaHora';");
 
         // Assert
         Assert.Contains("Turnos", tablas);
@@ -42,7 +45,9 @@ public class TurnoRepositorySqliteTests
         Assert.Contains("Tratamientos", tablas);
         Assert.Contains("Insumos", tablas);
         Assert.Contains("TratamientoInsumos", tablas);
+        Assert.Contains("MovimientosStock", tablas);
         Assert.Equal("IX_Turnos_OdontologoId_FechaHoraInicio", indice);
+        Assert.Equal("IX_MovimientosStock_InsumoId_FechaHora", indiceMovimientos);
     }
 
     [Fact]

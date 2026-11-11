@@ -81,7 +81,7 @@ ORDER BY FechaHoraInicio;";
         IEnumerable<Turno> turnos = await _unitOfWork.Connection.QueryAsync<Turno>(
             new CommandDefinition(
                 sql,
-                new { Id = id, Texto = busqueda, Patron = $"%{busqueda}%" },
+                new { Id = id, Texto = busqueda, Patron = "%" + busqueda + "%" },
                 _unitOfWork.Transaction));
 
         return turnos.ToList();

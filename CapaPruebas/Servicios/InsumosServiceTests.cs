@@ -1,6 +1,7 @@
 namespace ProyectoOdontologia.Tests.Servicios;
 
 using CapaDominio.Entidades;
+using CapaDominio.Excepciones;
 using Moq;
 using ProyectoOdontologia.CapaAplicacion.ServiciosAplicacion;
 using ProyectoOdontologia.CapaAplicacion.DtosInput;
@@ -17,16 +18,18 @@ using global::CapaAplicacion.Interfaces;
 public class InsumosServiceTests
 {
     private readonly Mock<IRepositorioInsumos> _mockRepositorio;
+    private readonly Mock<IUnitOfWork> _mockUnitOfWork;
     private readonly InsumosService _servicio;
 
     public InsumosServiceTests()
     {
         // Arrange comun: se re-crea el mock y el servicio en cada prueba.
         _mockRepositorio = new Mock<IRepositorioInsumos>();
+        _mockUnitOfWork = new Mock<IUnitOfWork>();
         _mockRepositorio
             .Setup(r => r.IdAutoIncrementoSincrono())
             .Returns(1);
-        _servicio = new InsumosService(_mockRepositorio.Object);
+        _servicio = new InsumosService(_mockRepositorio.Object, _mockUnitOfWork.Object);
     }
 
     [Fact]
@@ -42,6 +45,8 @@ public class InsumosServiceTests
         _mockRepositorio.Verify(
             r => r.AgregarInsumo(It.Is<Insumo>(i => i.Nombre == "Anestesia Lidocaina")),
             Times.Once);
+        _mockUnitOfWork.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -74,18 +79,16 @@ public class InsumosServiceTests
     }
 
     [Fact]
-    public async Task ObtenerInsumoPorIdAsync_IdInexistente_RetornaNull()
+    public async Task ObtenerInsumoPorIdAsync_IdInexistente_LanzaInsumoNoEncontradoException()
     {
         // Arrange
         _mockRepositorio
             .Setup(r => r.ObtenerInsumoPorId(It.IsAny<int>()))
             .ReturnsAsync((Insumo?)null);
 
-        // Act
-        InsumoDtosOutput? resultado = await _servicio.ObtenerInsumoPorIdAsync(99);
-
-        // Assert
-        Assert.Null(resultado);
+        // Act & Assert
+        await Assert.ThrowsAsync<InsumoNoEncontradoException>(
+            () => _servicio.ObtenerInsumoPorIdAsync(99));
     }
 
     [Fact]
@@ -108,19 +111,18 @@ public class InsumosServiceTests
     }
 
     [Fact]
-    public async Task EliminarInsumoAsync_IdInexistente_RetornaFalseYNoElimina()
+    public async Task EliminarInsumoAsync_IdInexistente_LanzaInsumoNoEncontradoException()
     {
         // Arrange
         _mockRepositorio
             .Setup(r => r.ObtenerInsumoPorId(It.IsAny<int>()))
             .ReturnsAsync((Insumo?)null);
 
-        // Act
-        bool resultado = await _servicio.EliminarInsumoAsync(99);
-
-        // Assert
-        Assert.False(resultado);
+        // Act & Assert
+        await Assert.ThrowsAsync<InsumoNoEncontradoException>(
+            () => _servicio.EliminarInsumoAsync(99));
         _mockRepositorio.Verify(r => r.EliminarInsumo(It.IsAny<int>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

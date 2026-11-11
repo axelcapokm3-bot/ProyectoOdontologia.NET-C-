@@ -42,7 +42,7 @@ public class TurnosService : ITurnosService
             cancellationToken);
 
         if (tratamiento == null)
-            throw new KeyNotFoundException($"No se encontró el tratamiento con ID {nuevoTurno.TratamientoId}");
+            throw new TratamientoNoEncontradoException(nuevoTurno.TratamientoId);
 
         Paciente? paciente = await _repositorioPaciente.ObtenerPacientePorId(nuevoTurno.PacienteId);
 
@@ -111,28 +111,22 @@ public class TurnosService : ITurnosService
         Turno? turno = await _repositorioTurnos.ObtenerTurnoPorIdAsync(id, cancellationToken);
 
         if (turno == null)
-            throw new KeyNotFoundException($"No se encontró el turno con ID {id}");
+            throw new TurnoNoEncontradoException(id);
 
         turno.Cancelar();
 
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        try
-        {
-            await _repositorioTurnos.ActualizarTurnoAsync(turno, cancellationToken);
-            await _unitOfWork.CommitAsync(cancellationToken);
-        }
-        catch
-        {
-            await _unitOfWork.RollbackAsync(cancellationToken);
-            throw;
-        }
+        await _repositorioTurnos.ActualizarTurnoAsync(turno, cancellationToken);
+        await _unitOfWork.CommitAsync(cancellationToken);
     }
 
     public async Task RegistrarTurnoAsync(TurnoDtoInput turnoDto)
     {
         if (turnoDto == null)
             throw new ArgumentNullException(nameof(turnoDto));
+
+        await _unitOfWork.BeginTransactionAsync();
 
         IEnumerable<Turno> turnosOdontologo = await _repositorioTurnos.ObtenerTodos();
 
@@ -164,6 +158,7 @@ public class TurnosService : ITurnosService
         agendaDelDia.ValidarDisponibilidad(nuevoTurno);
 
         await _repositorioTurnos.AgregarTurno(nuevoTurno);
+        await _unitOfWork.CommitAsync();
     }
 
     public async Task<TurnoDtoOutput> ObtenerTurnoPorIdAsync(int id)
@@ -171,7 +166,7 @@ public class TurnosService : ITurnosService
         Turno? turno = await _repositorioTurnos.ObtenerTurnoPorId(id);
 
         if (turno == null)
-            throw new KeyNotFoundException($"No se encontró el turno con ID {id}");
+            throw new TurnoNoEncontradoException(id);
 
         return new TurnoDtoOutput(
             turno.Id,
@@ -204,10 +199,12 @@ public class TurnosService : ITurnosService
         if (turnoEditado == null)
             throw new ArgumentNullException(nameof(turnoEditado));
 
+        await _unitOfWork.BeginTransactionAsync();
+
         Turno? existe = await _repositorioTurnos.ObtenerTurnoPorId(id);
 
         if (existe == null)
-            throw new KeyNotFoundException($"No se encontró el turno con ID {id}");
+            throw new TurnoNoEncontradoException(id);
 
         Turno turnoModificado = new Turno(
             id,
@@ -218,16 +215,25 @@ public class TurnosService : ITurnosService
             turnoEditado.TratamientoId);
 
         await _repositorioTurnos.ActualizarTurno(turnoModificado);
+        await _unitOfWork.CommitAsync();
     }
 
     public async Task<bool> EliminarTurnoAsync(int id)
     {
+        await _unitOfWork.BeginTransactionAsync();
+
         Turno? existe = await _repositorioTurnos.ObtenerTurnoPorId(id);
 
         if (existe == null)
-            return false;
+            throw new TurnoNoEncontradoException(id);
 
-        await _repositorioTurnos.EliminarTurno(id);
+        bool eliminado = await _repositorioTurnos.EliminarTurno(id);
+
+        if (!eliminado)
+            throw new TurnoNoEncontradoException(id);
+
+        await _unitOfWork.CommitAsync();
+
         return true;
     }
 

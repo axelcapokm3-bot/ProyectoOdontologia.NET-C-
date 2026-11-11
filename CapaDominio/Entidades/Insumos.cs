@@ -1,10 +1,11 @@
 namespace CapaDominio.Entidades;
 
+using CapaDominio.Excepciones;
 using System;
 
 public class Insumo
 {
-    private readonly object _stockLock = new object(); 
+    private readonly object _stockLock = new object();
 
     public int Id { get; private set; }
     public string Nombre { get; private set; }
@@ -19,17 +20,17 @@ public class Insumo
     {
         if (id <= 0)
         {
-            throw new ArgumentException("El ID debe ser mayor a cero.");
+            throw new ArgumentException("El ID debe ser mayor a cero.", nameof(id));
         }
 
         if (string.IsNullOrWhiteSpace(nombre))
         {
-            throw new ArgumentException("El nombre es obligatorio.");
+            throw new ArgumentException("El nombre es obligatorio.", nameof(nombre));
         }
 
         if (stock < 0)
         {
-            throw new ArgumentException("El stock no puede ser negativo.");
+            throw new ArgumentException("El stock no puede ser negativo.", nameof(stock));
         }
 
         Id = id;
@@ -37,13 +38,92 @@ public class Insumo
         Categoria = categoria;
         Stock = stock;
         StockReservado = 0;
-
         StockSeguridad = CalculoStockSeguridad(categoria);
         PuntoPedido = StockSeguridad * 2;
         StockMaximo = PuntoPedido * 3;
     }
 
-    
+    public Insumo(
+        int id,
+        string nombre,
+        CategoriaInsumo categoria,
+        int stock,
+        int stockReservado,
+        int puntoPedido,
+        int stockSeguridad,
+        int stockMaximo)
+    {
+        ValidarDatosBase(id, nombre, stock);
+
+        if (stockReservado < 0)
+        {
+            throw new ArgumentException("El stock reservado no puede ser negativo.", nameof(stockReservado));
+        }
+
+        if (stockSeguridad < 0)
+        {
+            throw new ArgumentException("El stock de seguridad no puede ser negativo.", nameof(stockSeguridad));
+        }
+
+        if (puntoPedido < stockSeguridad)
+        {
+            throw new ArgumentException("El punto de pedido no puede ser menor al stock de seguridad.", nameof(puntoPedido));
+        }
+
+        if (stockMaximo < puntoPedido)
+        {
+            throw new ArgumentException("El stock máximo no puede ser menor al punto de pedido.", nameof(stockMaximo));
+        }
+
+        if (stockReservado > stock)
+        {
+            throw new ArgumentException("El stock reservado no puede superar el stock total.", nameof(stockReservado));
+        }
+
+        Id = id;
+        Nombre = nombre;
+        Categoria = categoria;
+        Stock = stock;
+        StockReservado = stockReservado;
+        PuntoPedido = puntoPedido;
+        StockSeguridad = stockSeguridad;
+        StockMaximo = stockMaximo;
+    }
+
+    public void Actualizar(
+        string nombre,
+        CategoriaInsumo categoria,
+        int stock,
+        int stockReservado)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+        {
+            throw new ArgumentException("El nombre es obligatorio.", nameof(nombre));
+        }
+
+        if (stock < 0)
+        {
+            throw new ArgumentException("El stock no puede ser negativo.", nameof(stock));
+        }
+
+        if (stockReservado < 0)
+        {
+            throw new ArgumentException("El stock reservado no puede ser negativo.", nameof(stockReservado));
+        }
+
+        if (stockReservado > stock)
+        {
+            throw new ArgumentException("El stock reservado no puede superar el stock total.", nameof(stockReservado));
+        }
+
+        Nombre = nombre;
+        Categoria = categoria;
+        Stock = stock;
+        StockReservado = stockReservado;
+        StockSeguridad = CalculoStockSeguridad(categoria);
+        PuntoPedido = StockSeguridad * 2;
+        StockMaximo = PuntoPedido * 3;
+    }
 
     public int StockDisponible()
     {
@@ -57,14 +137,16 @@ public class Insumo
     {
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad a descontar debe ser mayor a cero.");
+            throw new ArgumentException("La cantidad a descontar debe ser mayor a cero.", nameof(cantidad));
         }
 
         lock (_stockLock)
         {
-            if (ObtenerStockDisponibleInterno() < cantidad)
+            int disponible = ObtenerStockDisponibleInterno();
+
+            if (disponible < cantidad)
             {
-                throw new InvalidOperationException("No se puede descontar: la cantidad supera el stock disponible.");
+                throw new StockInsuficienteException(Id, cantidad, disponible);
             }
 
             Stock -= cantidad;
@@ -75,7 +157,7 @@ public class Insumo
     {
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad a reponer debe ser mayor a cero.");
+            throw new ArgumentException("La cantidad a reponer debe ser mayor a cero.", nameof(cantidad));
         }
 
         lock (_stockLock)
@@ -118,7 +200,24 @@ public class Insumo
         return cantidadFaltante > 0 ? cantidadFaltante : 0;
     }
 
-    // Helper privado para evitar doble lock cuando ya se está dentro de la sección crítica
+    private static void ValidarDatosBase(int id, string nombre, int stock)
+    {
+        if (id <= 0)
+        {
+            throw new ArgumentException("El ID debe ser mayor a cero.", nameof(id));
+        }
+
+        if (string.IsNullOrWhiteSpace(nombre))
+        {
+            throw new ArgumentException("El nombre es obligatorio.", nameof(nombre));
+        }
+
+        if (stock < 0)
+        {
+            throw new ArgumentException("El stock no puede ser negativo.", nameof(stock));
+        }
+    }
+
     private int ObtenerStockDisponibleInterno()
     {
         return Stock - StockReservado;
@@ -126,13 +225,18 @@ public class Insumo
 
     private int CalculoStockSeguridad(CategoriaInsumo categoria)
     {
-        return categoria switch
+        switch (categoria)
         {
-            CategoriaInsumo.Descartable => 200,
-            CategoriaInsumo.Anestesia => 50,
-            CategoriaInsumo.Restauracion => 20,
-            CategoriaInsumo.Instrumental => 10,
-            _ => 30
-        };
+            case CategoriaInsumo.Descartable:
+                return 200;
+            case CategoriaInsumo.Anestesia:
+                return 50;
+            case CategoriaInsumo.Restauracion:
+                return 20;
+            case CategoriaInsumo.Instrumental:
+                return 10;
+            default:
+                return 30;
+        }
     }
 }

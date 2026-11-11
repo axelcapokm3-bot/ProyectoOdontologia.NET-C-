@@ -51,7 +51,20 @@ CREATE TABLE IF NOT EXISTS TratamientoInsumos (
     InsumoId INTEGER NOT NULL,
     CantidadUsada INTEGER NOT NULL,
     PRIMARY KEY (TratamientoId, InsumoId),
-    FOREIGN KEY (TratamientoId) REFERENCES Tratamientos (Id) ON DELETE CASCADE
+    FOREIGN KEY (TratamientoId) REFERENCES Tratamientos (Id) ON DELETE CASCADE,
+    FOREIGN KEY (InsumoId) REFERENCES Insumos (Id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS MovimientosStock (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    InsumoId INTEGER NOT NULL,
+    TipoMovimiento INTEGER NOT NULL,
+    Cantidad INTEGER NOT NULL,
+    StockAnterior INTEGER NOT NULL,
+    StockNuevo INTEGER NOT NULL,
+    FechaHora TEXT NOT NULL,
+    Motivo TEXT NOT NULL,
+    FOREIGN KEY (InsumoId) REFERENCES Insumos (Id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS Turnos (
@@ -79,6 +92,9 @@ CREATE INDEX IF NOT EXISTS IX_Turnos_TratamientoId
 
 CREATE INDEX IF NOT EXISTS IX_TratamientoInsumos_InsumoId
     ON TratamientoInsumos (InsumoId);
+
+CREATE INDEX IF NOT EXISTS IX_MovimientosStock_InsumoId_FechaHora
+    ON MovimientosStock (InsumoId, FechaHora);
 
 CREATE INDEX IF NOT EXISTS IX_Tratamientos_Descripcion
     ON Tratamientos (Descripcion);

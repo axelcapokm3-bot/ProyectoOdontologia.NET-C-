@@ -57,6 +57,72 @@ public class ExceptionHandlingMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_OdontologoNoEncontrado_Responde404()
+    {
+        // Act
+        ResultadoMiddleware resultado = await EjecutarAsync(new OdontologoNoEncontradoException(44));
+
+        // Assert
+        Assert.Equal(StatusCodes.Status404NotFound, resultado.Contexto.Response.StatusCode);
+        Assert.NotNull(resultado.Problema);
+        Assert.Equal(StatusCodes.Status404NotFound, resultado.Problema!.Status);
+        Assert.Contains("44", resultado.Problema.Detail);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_TratamientoNoEncontrado_Responde404()
+    {
+        // Act
+        ResultadoMiddleware resultado = await EjecutarAsync(new TratamientoNoEncontradoException(55));
+
+        // Assert
+        Assert.Equal(StatusCodes.Status404NotFound, resultado.Contexto.Response.StatusCode);
+        Assert.NotNull(resultado.Problema);
+        Assert.Equal(StatusCodes.Status404NotFound, resultado.Problema!.Status);
+        Assert.Contains("55", resultado.Problema.Detail);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_TurnoNoEncontrado_Responde404()
+    {
+        // Act
+        ResultadoMiddleware resultado = await EjecutarAsync(new TurnoNoEncontradoException(77));
+
+        // Assert
+        Assert.Equal(StatusCodes.Status404NotFound, resultado.Contexto.Response.StatusCode);
+        Assert.NotNull(resultado.Problema);
+        Assert.Equal(StatusCodes.Status404NotFound, resultado.Problema!.Status);
+        Assert.Equal("Turno no encontrado", resultado.Problema.Title);
+        Assert.Contains("77", resultado.Problema.Detail);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_InsumoNoEncontrado_Responde404()
+    {
+        // Act
+        ResultadoMiddleware resultado = await EjecutarAsync(new InsumoNoEncontradoException(66));
+
+        // Assert
+        Assert.Equal(StatusCodes.Status404NotFound, resultado.Contexto.Response.StatusCode);
+        Assert.NotNull(resultado.Problema);
+        Assert.Equal(StatusCodes.Status404NotFound, resultado.Problema!.Status);
+        Assert.Contains("66", resultado.Problema.Detail);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_StockInsuficiente_Responde409()
+    {
+        // Act
+        ResultadoMiddleware resultado = await EjecutarAsync(new StockInsuficienteException(7, 20, 5));
+
+        // Assert
+        Assert.Equal(StatusCodes.Status409Conflict, resultado.Contexto.Response.StatusCode);
+        Assert.NotNull(resultado.Problema);
+        Assert.Equal(StatusCodes.Status409Conflict, resultado.Problema!.Status);
+        Assert.Contains("7", resultado.Problema.Detail);
+    }
+
+    [Fact]
     public async Task InvokeAsync_DomainExceptionGenerica_Responde400()
     {
         // Act
