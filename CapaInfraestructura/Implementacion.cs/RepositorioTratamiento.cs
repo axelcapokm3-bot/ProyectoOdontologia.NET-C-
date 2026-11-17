@@ -128,4 +128,9 @@ public class RepositorioTratamiento : IRepositorioTratamiento
     {
         return ObtenerTratamientoPorId(id);
     }
+
+    public Task<Tratamiento?> ObtenerPorIdConInsumosAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return ObtenerTratamientoPorId(id);
+    }
 }

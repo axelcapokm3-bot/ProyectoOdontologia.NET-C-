@@ -25,4 +25,6 @@ public interface IRepositorioTratamiento
     int IdAutoIncrementoSincrono();
 
     Task<Tratamiento?> ObtenerTratamientoPorIdAsync(int id, CancellationToken cancellationToken = default);
+
+    Task<Tratamiento?> ObtenerPorIdConInsumosAsync(int id, CancellationToken cancellationToken = default);
 }

@@ -1,6 +1,6 @@
 # Arquitectura del Sistema Odontológico
 
-> Estado verificado el 2026-11-09. Fuente: inspección de `.csproj`, estructura de carpetas y configuración.
+> Estado verificado el 2026-11-17. Fuente: inspección de `.csproj`, estructura de carpetas y configuración.
 
 ## Stack verificado
 
@@ -98,9 +98,19 @@ CapaWebApi/
   Las invariantes del dominio se validan durante la materialización.
 - `TratamientoInsumos` aplica `ON DELETE RESTRICT` hacia `Insumos` para impedir eliminar insumos
   usados en tratamientos. `MovimientosStock` también referencia `Insumos` con `RESTRICT`.
-- `Pacientes`, `Odontologos` y `Usuarios`/`RefreshTokens` siguen en repositorios en memoria; no
-  participan de la transacción SQLite. La creación automática de usuarios en `PacienteService` y
-  `OdontologoService` no es atómica respecto del alta del paciente/odontólogo.
+- `Turnos` aplica `ON DELETE RESTRICT` hacia `Pacientes`, `Odontologos` y `Tratamientos`: no se
+  pueden eliminar registros referenciados por turnos y no existen turnos huérfanos. Como
+  `CREATE TABLE IF NOT EXISTS` no agrega FKs a bases preexistentes, `DatabaseInitializer` verifica
+  `PRAGMA foreign_key_list` y migra `Turnos` a `Turnos_Nuevo` (con las FKs, copiando solo filas con
+  referentes válidos) dentro de una transacción cuando falta la restricción.
+- La producción satisface las FKs porque `RegistrarTurnoAsync` valida paciente y odontólogo antes
+  del `INSERT`. Los fixtures de prueba deben sembrar los `Pacientes` y `Odontólogos` referentes
+  antes de insertar turnos.
+- `Pacientes` y `Odontologos` persisten en SQLite (`PacienteRepositorySqlite`,
+  `OdontologoRepositorySqlite`, con filas DTO internas) y participan de la transacción SQLite.
+  `Usuarios` y `RefreshTokens` siguen en repositorios en memoria: la creación automática de
+  usuarios en `PacienteService` y `OdontologoService` no es atómica respecto del alta; el paciente
+  se confirma en SQLite y el vínculo `UsuarioId` se establece después.
 
 ## Restricciones arquitectónicas del proyecto
 

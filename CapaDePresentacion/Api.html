@@ -1,483 +1,598 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sistema Odontología</title>
-    <link rel="stylesheet" href="assets/css/styles.css" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
-    <!-- Sidebar -->
-    <aside>
-      <div class="sidebar-brand">
-        <div class="brand-logo">
-          <span class="material-symbols-outlined">medical_services</span>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#043440">
+  <title>OdontoCare — Panel clínico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <div class="top-progress" id="topProgress" aria-hidden="true"></div>
+  <a class="skip-link" href="#mainContent">Saltar al contenido</a>
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo" aria-hidden="true">
+        <span class="material-symbols-outlined">dentistry</span>
+      </div>
+      <div class="brand-text">
+        <strong>OdontoCare</strong>
+        <span>Panel clínico</span>
+      </div>
+      <div class="sidebar-quick mobile-only">
+        <button class="icon-button icon-button--ghost" type="button" data-open-settings aria-label="Configurar API">
+          <span class="material-symbols-outlined" aria-hidden="true">tune</span>
+        </button>
+        <button class="icon-button icon-button--ghost" type="button" data-logout aria-label="Cerrar sesión">
+          <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+        </button>
+      </div>
+    </div>
+
+    <nav id="entityNav" aria-label="Secciones del panel">
+      <button class="nav-link active" data-seccion="dashboard" type="button" aria-current="page">
+        <span class="material-symbols-outlined" aria-hidden="true">space_dashboard</span>
+        <span class="nav-label">Dashboard</span>
+      </button>
+      <button class="nav-link" data-seccion="pacientes" type="button">
+        <span class="material-symbols-outlined" aria-hidden="true">groups</span>
+        <span class="nav-label">Pacientes</span>
+      </button>
+      <button class="nav-link" data-seccion="odontologos" type="button">
+        <span class="material-symbols-outlined" aria-hidden="true">stethoscope</span>
+        <span class="nav-label">Odontólogos</span>
+      </button>
+      <button class="nav-link" data-seccion="tratamientos" type="button">
+        <span class="material-symbols-outlined" aria-hidden="true">healing</span>
+        <span class="nav-label">Tratamientos</span>
+      </button>
+      <button class="nav-link" data-seccion="turnos" type="button">
+        <span class="material-symbols-outlined" aria-hidden="true">event</span>
+        <span class="nav-label">Turnos</span>
+      </button>
+      <button class="nav-link" data-seccion="insumos" type="button">
+        <span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>
+        <span class="nav-label">Insumos</span>
+        <span class="nav-count" id="insumosAlert" hidden>0</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="userAvatar" aria-hidden="true">OC</div>
+        <div class="user-meta">
+          <span class="user-name" id="userName">Sesión activa</span>
+          <span class="user-role" id="userRole">Personal clínico</span>
         </div>
-        <div class="brand-text">
-          <strong>OdontoClínica</strong>
-          <span>Panel de administración</span>
+        <button class="icon-button icon-button--ghost" type="button" data-logout aria-label="Cerrar sesión" title="Cerrar sesión">
+          <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+        </button>
+      </div>
+
+      <div class="api-status" id="apiStatus">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Verificando conexión…</span>
+      </div>
+
+      <button class="text-button" id="settingsButton" type="button" data-open-settings>
+        <span class="material-symbols-outlined" aria-hidden="true">tune</span>
+        <span>Configurar API</span>
+      </button>
+    </div>
+  </aside>
+
+  <main id="mainContent" tabindex="-1">
+    <!-- Dashboard -->
+    <section id="sec-dashboard" class="seccion-modulo" aria-labelledby="dashboard-title">
+      <header class="modulo-header">
+        <div class="modulo-title">
+          <p class="eyebrow">Vista general</p>
+          <h1 id="dashboard-title">Resumen de la clínica</h1>
+          <p class="modulo-sub">Indicadores calculados con los registros actuales de la API.</p>
+        </div>
+        <div class="modulo-actions">
+          <span class="chip chip-date" id="todayLabel">—</span>
+          <button class="button button-primary" id="btnNuevaCita" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            <span>Nuevo turno</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="metrics-grid">
+        <article class="metric-card metric-card--patients">
+          <div class="metric-header">
+            <span class="metric-title">Pacientes totales</span>
+            <span class="metric-icon" aria-hidden="true">
+              <span class="material-symbols-outlined">groups</span>
+            </span>
+          </div>
+          <div class="metric-value" id="metric-pacientes">0</div>
+          <div class="metric-trend">
+            <span id="metric-pacientes-sub">Registros en el sistema</span>
+          </div>
+        </article>
+
+        <article class="metric-card metric-card--agenda">
+          <div class="metric-header">
+            <span class="metric-title">Turnos pendientes hoy</span>
+            <span class="metric-icon" aria-hidden="true">
+              <span class="material-symbols-outlined">event</span>
+            </span>
+          </div>
+          <div class="metric-value" id="metric-citas-hoy">0</div>
+          <div class="metric-trend">
+            <span id="metric-citas-sub">0 completados · 0 cancelados</span>
+          </div>
+        </article>
+
+        <article class="metric-card metric-card--stock">
+          <div class="metric-header">
+            <span class="metric-title">Insumos críticos</span>
+            <span class="metric-icon" aria-hidden="true">
+              <span class="material-symbols-outlined">warning</span>
+            </span>
+          </div>
+          <div class="metric-value text-danger" id="metric-insumos">0</div>
+          <div class="metric-trend">
+            <span id="metric-insumos-sub">0 con stock bajo</span>
+          </div>
+        </article>
+
+        <article class="metric-card metric-card--billing">
+          <div class="metric-header">
+            <span class="metric-title">Valor estimado del mes</span>
+            <span class="metric-icon" aria-hidden="true">
+              <span class="material-symbols-outlined">payments</span>
+            </span>
+          </div>
+          <div class="metric-value" id="metric-ingresos">$0</div>
+          <div class="metric-trend">
+            <span id="metric-ingresos-sub">Turnos no cancelados del mes</span>
+          </div>
+        </article>
+      </div>
+
+      <div class="insights-grid">
+        <article class="panel">
+          <header class="panel-header">
+            <div>
+              <h3>Agenda de hoy</h3>
+              <p>Estado de los turnos registrados para la fecha.</p>
+            </div>
+            <span class="chip" id="agenda-total">0 turnos</span>
+          </header>
+          <div class="stacked-bar" id="agenda-bar" role="img" aria-label="Distribución de turnos de hoy"></div>
+          <div class="legend" id="agenda-legend"></div>
+        </article>
+
+        <article class="panel" id="stockPanel">
+          <header class="panel-header">
+            <div>
+              <h3>Salud del inventario</h3>
+              <p>Disponibilidad según stock de seguridad y punto de pedido.</p>
+            </div>
+            <span class="chip" id="stock-total">0 insumos</span>
+          </header>
+          <div class="stacked-bar" id="stock-bar" role="img" aria-label="Distribución de insumos por nivel de stock"></div>
+          <div class="legend" id="stock-legend"></div>
+        </article>
+      </div>
+
+      <div class="table-container">
+        <div class="table-header-custom">
+          <div>
+            <h3>Próximos turnos</h3>
+            <p class="text-muted">Los siguientes turnos pendientes en agenda.</p>
+          </div>
+          <button class="button button-primary button-sm" id="btnNuevaCitaAlt" type="button" data-new-entity="turnos">
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            <span>Nuevo turno</span>
+          </button>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Paciente</th>
+                <th>Odontólogo</th>
+                <th class="hide-md">Tratamiento</th>
+                <th>Fecha y hora</th>
+                <th class="text-center">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-proximas-citas"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pacientes -->
+    <section id="sec-pacientes" class="seccion-modulo hidden" aria-labelledby="pacientes-title">
+      <header class="modulo-header">
+        <div class="modulo-title">
+          <p class="eyebrow">Directorio</p>
+          <h2 id="pacientes-title">Pacientes</h2>
+          <p class="modulo-sub">Gestión y consulta de registros de la clínica.</p>
+        </div>
+        <div class="modulo-actions">
+          <div class="search-box">
+            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+            <input type="text" id="search-pacientes" placeholder="Buscar paciente…" aria-label="Buscar paciente" autocomplete="off">
+          </div>
+          <button class="button button-primary" id="btnNuevoPaciente" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">person_add</span>
+            <span>Nuevo paciente</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="table-container">
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre completo</th>
+                <th class="hide-sm">Correo electrónico</th>
+                <th class="hide-md">Teléfono</th>
+                <th class="hide-md">Nacimiento</th>
+                <th class="text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-pacientes"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span class="pagination-info" id="summary-pacientes"></span>
+          <div class="pagination-actions">
+            <span class="pagination-page" id="page-pacientes">1 / 1</span>
+            <button class="pagination-button" type="button" data-nav="pacientes:prev" aria-label="Página anterior">
+              <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+            </button>
+            <button class="pagination-button" type="button" data-nav="pacientes:next" aria-label="Página siguiente">
+              <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Odontólogos -->
+    <section id="sec-odontologos" class="seccion-modulo hidden" aria-labelledby="odontologos-title">
+      <header class="modulo-header">
+        <div class="modulo-title">
+          <p class="eyebrow">Equipo profesional</p>
+          <h2 id="odontologos-title">Odontólogos</h2>
+          <p class="modulo-sub">Profesionales registrados en la clínica.</p>
+        </div>
+        <div class="modulo-actions">
+          <div class="search-box">
+            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+            <input type="text" id="search-odontologos" placeholder="Buscar odontólogo…" aria-label="Buscar odontólogo" autocomplete="off">
+          </div>
+          <button class="button button-primary" id="btnNuevoOdontologo" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">person_add</span>
+            <span>Nuevo odontólogo</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="table-container">
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre completo</th>
+                <th class="hide-sm">Matrícula</th>
+                <th>Especialidad</th>
+                <th class="hide-md">Teléfono</th>
+                <th class="text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-odontologos"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span class="pagination-info" id="summary-odontologos"></span>
+          <div class="pagination-actions">
+            <span class="pagination-page" id="page-odontologos">1 / 1</span>
+            <button class="pagination-button" type="button" data-nav="odontologos:prev" aria-label="Página anterior">
+              <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+            </button>
+            <button class="pagination-button" type="button" data-nav="odontologos:next" aria-label="Página siguiente">
+              <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tratamientos -->
+    <section id="sec-tratamientos" class="seccion-modulo hidden" aria-labelledby="tratamientos-title">
+      <header class="modulo-header">
+        <div class="modulo-title">
+          <p class="eyebrow">Catálogo clínico</p>
+          <h2 id="tratamientos-title">Tratamientos</h2>
+          <p class="modulo-sub">Procedimientos, duración y consumo de insumos.</p>
+        </div>
+        <div class="modulo-actions">
+          <div class="search-box">
+            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+            <input type="text" id="search-tratamientos" placeholder="Buscar tratamiento…" aria-label="Buscar tratamiento" autocomplete="off">
+          </div>
+          <button class="button button-primary" id="btnNuevoTratamiento" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            <span>Nuevo tratamiento</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="table-container">
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Descripción</th>
+                <th class="hide-md">Insumos requeridos</th>
+                <th class="text-right">Costo</th>
+                <th class="text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-tratamientos"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span class="pagination-info" id="summary-tratamientos"></span>
+          <div class="pagination-actions">
+            <span class="pagination-page" id="page-tratamientos">1 / 1</span>
+            <button class="pagination-button" type="button" data-nav="tratamientos:prev" aria-label="Página anterior">
+              <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+            </button>
+            <button class="pagination-button" type="button" data-nav="tratamientos:next" aria-label="Página siguiente">
+              <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Turnos -->
+    <section id="sec-turnos" class="seccion-modulo hidden" aria-labelledby="turnos-title">
+      <header class="modulo-header">
+        <div class="modulo-title">
+          <p class="eyebrow">Agenda</p>
+          <h2 id="turnos-title">Turnos</h2>
+          <p class="modulo-sub">Agenda de turnos registrados en la clínica.</p>
+        </div>
+        <div class="modulo-actions">
+          <button class="button button-primary" id="btnNuevoTurno" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            <span>Nuevo turno</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label for="filter-date" class="filter-label">Fecha</label>
+          <input type="date" id="filter-date" class="form-input">
+        </div>
+        <div class="filter-group">
+          <label for="filter-doctor" class="filter-label">Odontólogo</label>
+          <select id="filter-doctor" class="form-select">
+            <option value="all">Todos los profesionales</option>
+          </select>
+        </div>
+        <div class="filter-group filter-group--search">
+          <span class="filter-label">Búsqueda</span>
+          <div class="search-box">
+            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+            <input type="text" id="search-turnos" placeholder="Buscar turno…" aria-label="Buscar turno" autocomplete="off">
+          </div>
         </div>
       </div>
 
-      <nav id="entityNav">
-        <button class="nav-link active" data-seccion="dashboard">
-          <span class="material-symbols-outlined">space_dashboard</span>
-          Dashboard
-        </button>
-        <button class="nav-link" data-seccion="pacientes">
-          <span class="material-symbols-outlined">groups</span>
-          Pacientes
-        </button>
-        <button class="nav-link" data-seccion="odontologos">
-          <span class="material-symbols-outlined">stethoscope</span>
-          Odontólogos
-        </button>
-        <button class="nav-link" data-seccion="tratamientos">
-          <span class="material-symbols-outlined">healing</span>
-          Tratamientos
-        </button>
-        <button class="nav-link" data-seccion="turnos">
-          <span class="material-symbols-outlined">event</span>
-          Turnos
-        </button>
-        <button class="nav-link" data-seccion="insumos">
-          <span class="material-symbols-outlined">inventory_2</span>
-          Insumos
-        </button>
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="api-status">
-          <span class="status-dot" id="statusDot"></span>
-          <span id="statusText">API sin conexión</span>
+      <div class="table-container">
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Inicio / fin</th>
+                <th>Paciente</th>
+                <th>Odontólogo</th>
+                <th class="hide-md">Tratamiento</th>
+                <th class="text-center">Estado</th>
+                <th class="text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-turnos"></tbody>
+          </table>
         </div>
-        <button class="text-button" id="settingsButton" type="button">
-          <span class="material-symbols-outlined" style="font-size: 16px">settings</span>
-          Configurar API
+        <div class="table-footer">
+          <span class="pagination-info" id="summary-turnos"></span>
+          <div class="pagination-actions">
+            <span class="pagination-page" id="page-turnos">1 / 1</span>
+            <button class="pagination-button" type="button" data-nav="turnos:prev" aria-label="Página anterior">
+              <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+            </button>
+            <button class="pagination-button" type="button" data-nav="turnos:next" aria-label="Página siguiente">
+              <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Insumos -->
+    <section id="sec-insumos" class="seccion-modulo hidden" aria-labelledby="insumos-title">
+      <header class="modulo-header">
+        <div class="modulo-title">
+          <p class="eyebrow">Inventario</p>
+          <h2 id="insumos-title">Insumos</h2>
+          <p class="modulo-sub">Stock disponible, punto de pedido y nivel de criticidad.</p>
+        </div>
+        <div class="modulo-actions">
+          <div class="search-box">
+            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+            <input type="text" id="search-insumos" placeholder="Buscar insumo…" aria-label="Buscar insumo" autocomplete="off">
+          </div>
+          <button class="button button-primary" id="btnNuevoInsumo" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            <span>Nuevo insumo</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="table-container">
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Insumo</th>
+                <th class="hide-sm">Categoría</th>
+                <th class="text-right">Stock disponible</th>
+                <th class="text-right hide-md">Punto de pedido</th>
+                <th class="text-center">Estado</th>
+                <th class="text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-insumos"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span class="pagination-info" id="summary-insumos"></span>
+          <div class="pagination-actions">
+            <span class="pagination-page" id="page-insumos">1 / 1</span>
+            <button class="pagination-button" type="button" data-nav="insumos:prev" aria-label="Página anterior">
+              <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+            </button>
+            <button class="pagination-button" type="button" data-nav="insumos:next" aria-label="Página siguiente">
+              <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal CRUD -->
+  <dialog id="recordDialog" class="modal-dialog" aria-labelledby="formTitle" aria-describedby="formDescription">
+    <form id="recordForm" novalidate>
+      <div class="modal-header">
+        <div class="modal-heading">
+          <p class="modal-eyebrow">Registro</p>
+          <h3 id="formTitle">Registrar</h3>
+          <p class="text-muted" id="formDescription"></p>
+        </div>
+        <button class="icon-button modal-close" id="modalCloseButton" type="button" aria-label="Cerrar">
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
         </button>
       </div>
-    </aside>
 
-    <!-- Área Principal -->
-    <main id="mainContent">
-      <!-- Sección Dashboard -->
-      <section id="sec-dashboard" class="seccion-modulo">
-        <div class="modulo-header">
-          <div class="modulo-title">
-            <h2>Resumen de la Clínica</h2>
-            <p class="text-muted">Estado actual de la clínica según los datos registrados.</p>
-          </div>
-        </div>
+      <div class="modal-body">
+        <p class="form-note">
+          <span class="material-symbols-outlined" aria-hidden="true">info</span>
+          El identificador se asigna automáticamente al guardar.
+        </p>
 
-        <div class="metrics-grid">
-          <div class="metric-card">
-            <div class="metric-header">
-              <span class="metric-title">Pacientes Totales</span>
-              <span class="material-symbols-outlined text-muted">groups</span>
-            </div>
-            <div class="metric-value text-primary" id="metric-pacientes">0</div>
-            <div class="metric-trend text-muted">
-              <span>Pacientes registrados</span>
-            </div>
-          </div>
+        <div class="form-grid" id="formFields"></div>
 
-          <div class="metric-card">
-            <div class="metric-header">
-              <span class="metric-title">Citas Hoy</span>
-              <span class="material-symbols-outlined text-muted">event</span>
-            </div>
-            <div class="metric-value" id="metric-citas-hoy">0</div>
-            <div class="metric-trend text-muted">
-              <span id="metric-citas-sub">Turnos para hoy</span>
-            </div>
+        <!-- Editor de insumos requeridos (Tratamientos) -->
+        <div class="ti-editor hidden" id="tiEditor">
+          <div class="ti-editor-title">
+            <h4>Insumos requeridos</h4>
+            <p class="text-muted">Insumos que consume este tratamiento.</p>
           </div>
-
-          <div class="metric-card">
-            <div class="metric-header">
-              <span class="metric-title">Insumos Críticos</span>
-              <span class="material-symbols-outlined text-muted">warning</span>
-            </div>
-            <div class="metric-value text-danger" id="metric-insumos">0</div>
-            <div class="metric-trend text-danger">
-              <span>Requieren reposición</span>
-            </div>
-          </div>
-
-          <div class="metric-card">
-            <div class="metric-header">
-              <span class="metric-title">Ingresos (Mes)</span>
-              <span class="material-symbols-outlined text-muted">payments</span>
-            </div>
-            <div class="metric-value" id="metric-ingresos">$0</div>
-            <div class="metric-trend text-muted">
-              <span id="metric-ingresos-sub">Estimado del mes por tratamientos</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="table-container">
-          <div class="table-header-custom">
-            <h3>Próximos Turnos</h3>
-            <button class="button button-primary" id="btnNuevaCita" type="button">
-              <span class="material-symbols-outlined" style="font-size: 18px">add</span>
-              Nuevo Turno
-            </button>
-          </div>
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Paciente</th>
-                  <th>Odontólogo</th>
-                  <th>Tratamiento</th>
-                  <th>Fecha y Hora</th>
-                </tr>
-              </thead>
-              <tbody id="tbody-proximas-citas"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- Sección Pacientes -->
-      <section id="sec-pacientes" class="seccion-modulo hidden">
-        <div class="modulo-header">
-          <div class="modulo-title">
-            <h2>Pacientes</h2>
-            <p class="text-muted">Gestión y directorio de registros médicos.</p>
-          </div>
-          <div class="modulo-actions">
-            <div class="search-box">
-              <span class="material-symbols-outlined">search</span>
-              <input type="text" id="search-pacientes" placeholder="Buscar paciente..." />
-            </div>
-            <button class="button button-primary" id="btnNuevoPaciente" type="button">
-              <span class="material-symbols-outlined" style="font-size: 18px">add</span>
-              Nuevo Paciente
-            </button>
-          </div>
-        </div>
-
-        <div class="table-container">
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Nombre Completo</th>
-                  <th class="hide-sm">Correo Electrónico</th>
-                  <th class="hide-md">Teléfono</th>
-                  <th class="hide-md">Fecha de Nacimiento</th>
-                  <th class="text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="tbody-pacientes"></tbody>
-            </table>
-          </div>
-          <div class="table-footer">
-            <span class="pagination-info" id="summary-pacientes"></span>
-            <div class="pagination-actions">
-              <button class="pagination-button" type="button" data-nav="pacientes:prev">
-                <span class="material-symbols-outlined" style="font-size: 18px">chevron_left</span>
-              </button>
-              <button class="pagination-button" type="button" data-nav="pacientes:next">
-                <span class="material-symbols-outlined" style="font-size: 18px">chevron_right</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Sección Odontólogos -->
-      <section id="sec-odontologos" class="seccion-modulo hidden">
-        <div class="modulo-header">
-          <div class="modulo-title">
-            <h2>Odontólogos</h2>
-            <p class="text-muted">Profesionales registrados en la clínica.</p>
-          </div>
-          <div class="modulo-actions">
-            <div class="search-box">
-              <span class="material-symbols-outlined">search</span>
-              <input type="text" id="search-odontologos" placeholder="Buscar odontólogo..." />
-            </div>
-            <button class="button button-primary" id="btnNuevoOdontologo" type="button">
-              <span class="material-symbols-outlined" style="font-size: 18px">add</span>
-              Nuevo Odontólogo
-            </button>
-          </div>
-        </div>
-
-        <div class="table-container">
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Nombre Completo</th>
-                  <th class="hide-sm">Matrícula</th>
-                  <th>Especialidad</th>
-                  <th class="hide-md">Teléfono</th>
-                  <th class="text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="tbody-odontologos"></tbody>
-            </table>
-          </div>
-          <div class="table-footer">
-            <span class="pagination-info" id="summary-odontologos"></span>
-            <div class="pagination-actions">
-              <button class="pagination-button" type="button" data-nav="odontologos:prev">
-                <span class="material-symbols-outlined" style="font-size: 18px">chevron_left</span>
-              </button>
-              <button class="pagination-button" type="button" data-nav="odontologos:next">
-                <span class="material-symbols-outlined" style="font-size: 18px">chevron_right</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Sección Tratamientos -->
-      <section id="sec-tratamientos" class="seccion-modulo hidden">
-        <div class="modulo-header">
-          <div class="modulo-title">
-            <h2>Tratamientos</h2>
-            <p class="text-muted">Gestión y catálogo de procedimientos clínicos.</p>
-          </div>
-          <div class="modulo-actions">
-            <div class="search-box">
-              <span class="material-symbols-outlined">search</span>
-              <input type="text" id="search-tratamientos" placeholder="Buscar tratamiento..." />
-            </div>
-            <button class="button button-primary" id="btnNuevoTratamiento" type="button">
-              <span class="material-symbols-outlined" style="font-size: 18px">add</span>
-              Nuevo Tratamiento
-            </button>
-          </div>
-        </div>
-
-        <div class="table-container">
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Descripción</th>
-                  <th class="hide-md">Insumos Requeridos</th>
-                  <th class="text-right">Costo</th>
-                  <th class="text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="tbody-tratamientos"></tbody>
-            </table>
-          </div>
-          <div class="table-footer">
-            <span class="pagination-info" id="summary-tratamientos"></span>
-            <div class="pagination-actions">
-              <button class="pagination-button" type="button" data-nav="tratamientos:prev">
-                <span class="material-symbols-outlined" style="font-size: 18px">chevron_left</span>
-              </button>
-              <button class="pagination-button" type="button" data-nav="tratamientos:next">
-                <span class="material-symbols-outlined" style="font-size: 18px">chevron_right</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Sección Turnos -->
-      <section id="sec-turnos" class="seccion-modulo hidden">
-        <div class="modulo-header">
-          <div class="modulo-title">
-            <h2>Turnos</h2>
-            <p class="text-muted">Agenda de turnos registrados en la clínica.</p>
-          </div>
-          <div class="modulo-actions">
-            <button class="button button-primary" id="btnNuevoTurno" type="button">
-              <span class="material-symbols-outlined" style="font-size: 18px">add</span>
-              Nuevo Turno
-            </button>
-          </div>
-        </div>
-
-        <div class="filters-bar">
-          <div class="filter-group">
-            <label for="filter-date" class="filter-label">Fecha</label>
-            <input type="date" id="filter-date" class="form-input" />
-          </div>
-          <div class="filter-group">
-            <label for="filter-doctor" class="filter-label">Odontólogo</label>
-            <select id="filter-doctor" class="form-select">
-              <option value="all">Todos los profesionales</option>
+          <div class="editor-add-row">
+            <select id="tiInsumo" class="form-select" aria-label="Insumo requerido">
+              <option value="">Seleccionar insumo…</option>
             </select>
-          </div>
-          <div class="filter-group">
-            <div class="search-box">
-              <span class="material-symbols-outlined">search</span>
-              <input type="text" id="search-turnos" placeholder="Buscar turno..." />
-            </div>
-          </div>
-        </div>
-
-        <div class="table-container">
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Fecha y Hora</th>
-                  <th>Paciente</th>
-                  <th>Odontólogo</th>
-                  <th class="hide-md">Tratamiento</th>
-                  <th class="text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="tbody-turnos"></tbody>
-            </table>
-          </div>
-          <div class="table-footer">
-            <span class="pagination-info" id="summary-turnos"></span>
-            <div class="pagination-actions">
-              <button class="pagination-button" type="button" data-nav="turnos:prev">
-                <span class="material-symbols-outlined" style="font-size: 18px">chevron_left</span>
-              </button>
-              <button class="pagination-button" type="button" data-nav="turnos:next">
-                <span class="material-symbols-outlined" style="font-size: 18px">chevron_right</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Sección Insumos -->
-      <section id="sec-insumos" class="seccion-modulo hidden">
-        <div class="modulo-header">
-          <div class="modulo-title">
-            <h2>Insumos</h2>
-            <p class="text-muted">Gestión de insumos médicos y materiales.</p>
-          </div>
-          <div class="modulo-actions">
-            <div class="search-box">
-              <span class="material-symbols-outlined">search</span>
-              <input type="text" id="search-insumos" placeholder="Buscar insumo..." />
-            </div>
-            <button class="button button-primary" id="btnNuevoInsumo" type="button">
-              <span class="material-symbols-outlined" style="font-size: 18px">add</span>
-              Nuevo Insumo
+            <input type="number" id="tiCantidad" class="form-input" placeholder="Cantidad" min="1" step="1" aria-label="Cantidad usada">
+            <button class="button button-primary" id="tiAdd" type="button">
+              <span class="material-symbols-outlined" aria-hidden="true">add</span>
+              <span>Agregar</span>
             </button>
           </div>
+          <ul class="ti-list" id="tiList"></ul>
+          <p class="ti-hint hidden" id="tiHint">
+            Un tratamiento editado debe incluir al menos un insumo.
+          </p>
         </div>
+      </div>
 
-        <div class="table-container">
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Insumo</th>
-                  <th class="hide-sm">Categoría</th>
-                  <th class="text-right">Stock Disponible</th>
-                  <th class="text-right hide-md">Punto de Pedido</th>
-                  <th class="text-center">Estado</th>
-                  <th class="text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="tbody-insumos"></tbody>
-            </table>
-          </div>
-          <div class="table-footer">
-            <span class="pagination-info" id="summary-insumos"></span>
-            <div class="pagination-actions">
-              <button class="pagination-button" type="button" data-nav="insumos:prev">
-                <span class="material-symbols-outlined" style="font-size: 18px">chevron_left</span>
-              </button>
-              <button class="pagination-button" type="button" data-nav="insumos:next">
-                <span class="material-symbols-outlined" style="font-size: 18px">chevron_right</span>
-              </button>
-            </div>
-          </div>
+      <div class="modal-footer">
+        <button class="button button-ghost" id="cancelButton" type="button">Cancelar</button>
+        <button class="button button-primary" id="submitButton" type="submit">
+          <span id="submitButtonLabel">Guardar</span>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal Configuración API -->
+  <dialog id="settingsDialog" class="modal-dialog modal-dialog--settings" aria-labelledby="settingsTitle">
+    <form id="settingsForm" novalidate>
+      <div class="modal-header">
+        <div class="modal-heading">
+          <p class="modal-eyebrow">Conexión</p>
+          <h3 id="settingsTitle">Configurar API</h3>
+          <p class="text-muted">URL base del backend de la clínica.</p>
         </div>
-      </section>
-    </main>
+        <button class="icon-button modal-close" id="settingsCloseButton" type="button" aria-label="Cerrar">
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label">
+          URL base
+          <input type="url" id="apiUrl" class="form-input" required placeholder="http://localhost:5231/api">
+        </label>
+        <p class="form-note">
+          <span class="material-symbols-outlined" aria-hidden="true">info</span>
+          Se guarda solo en este navegador. No modifica la configuración del servidor.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="button button-ghost" id="settingsCancelButton" type="button">Cancelar</button>
+        <button class="button button-primary" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
 
-    <!-- Modal CRUD -->
-    <dialog id="recordDialog" class="modal-dialog">
-      <form id="recordForm" novalidate>
-        <div class="modal-header">
-          <div>
-            <h3 id="formTitle">Registrar</h3>
-            <p class="text-muted" id="formDescription"></p>
-          </div>
-          <button class="icon-button modal-close" id="modalCloseButton" type="button" aria-label="Cerrar">
-            <span class="material-symbols-outlined">close</span>
-          </button>
-        </div>
+  <!-- Confirmación -->
+  <dialog id="confirmDialog" class="modal-dialog modal-dialog--confirm" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+    <div class="confirm-body">
+      <div class="confirm-icon" id="confirmIcon" aria-hidden="true">
+        <span class="material-symbols-outlined">help</span>
+      </div>
+      <h3 id="confirmTitle">Confirmar acción</h3>
+      <p id="confirmMessage" class="text-muted"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="button button-ghost" id="confirmCancel" type="button">Cancelar</button>
+      <button class="button button-primary" id="confirmOk" type="button">Confirmar</button>
+    </div>
+  </dialog>
 
-        <div class="modal-body">
-          <div class="form-grid" id="formFields"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-          <!-- Editor de insumos requeridos (Tratamientos) -->
-          <div class="ti-editor hidden" id="tiEditor">
-            <div class="ti-editor-title">
-              <h4>Insumos requeridos</h4>
-              <p class="text-muted">Insumos que consume este tratamiento.</p>
-            </div>
-            <div class="editor-add-row">
-              <select id="tiInsumo" class="form-select">
-                <option value="">Seleccionar insumo…</option>
-              </select>
-              <input type="number" id="tiCantidad" class="form-input" placeholder="Cantidad" min="1" step="1" />
-              <button class="button button-primary" id="tiAdd" type="button">
-                <span class="material-symbols-outlined" style="font-size: 18px">add</span>
-                Agregar
-              </button>
-            </div>
-            <ul class="ti-list" id="tiList"></ul>
-            <p class="ti-hint hidden" id="tiHint">
-              Un tratamiento editado debe incluir al menos un insumo.
-            </p>
-          </div>
-        </div>
+  <noscript>
+    <div class="noscript">Este panel necesita JavaScript para conectarse con la API.</div>
+  </noscript>
 
-        <div class="modal-footer">
-          <button class="button button-ghost" id="cancelButton" type="button">Cancelar</button>
-          <button class="button button-primary" id="submitButton" type="submit">Guardar</button>
-        </div>
-      </form>
-    </dialog>
-
-    <!-- Modal Configuración API -->
-    <dialog id="settingsDialog" class="modal-dialog">
-      <form id="settingsForm" class="modal-content" novalidate>
-        <div class="modal-header">
-          <div>
-            <h3>Configurar API</h3>
-            <p class="text-muted">URL base del backend.</p>
-          </div>
-          <button class="icon-button modal-close" id="settingsCloseButton" type="button" aria-label="Cerrar">
-            <span class="material-symbols-outlined">close</span>
-          </button>
-        </div>
-        <div class="modal-body">
-          <label class="field-label">
-            URL base
-            <input type="url" id="apiUrl" class="form-input" required placeholder="http://localhost:5231/api" />
-          </label>
-        </div>
-        <div class="modal-footer">
-          <button class="button button-ghost" id="settingsCancelButton" type="button">Cancelar</button>
-          <button class="button button-primary" type="submit">Guardar</button>
-        </div>
-      </form>
-    </dialog>
-
-    <div id="toast" class="toast" role="status"></div>
-
-    <script src="assets/js/config.js"></script>
-    <script src="assets/js/api.js"></script>
-    <script src="assets/js/app.js"></script>
-  </body>
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
 </html>

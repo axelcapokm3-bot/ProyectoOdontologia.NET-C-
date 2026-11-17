@@ -15,7 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<IRepositorioUsuario, RepositorioUsuario>();
 
 string connectionString = builder.Configuration.GetConnectionString("ClinicaDb")
-    ?? "Data Source=clinica.db";
+    ?? "Data Source=clinica.db;Foreign Keys=True";
 
 builder.Services.AddSingleton<IDbConnectionFactory>(new SqliteConnectionFactory(connectionString));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWorkSqlite>();

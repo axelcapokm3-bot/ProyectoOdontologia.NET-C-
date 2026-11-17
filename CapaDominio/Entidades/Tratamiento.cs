@@ -46,14 +46,4 @@ public class Tratamiento
         insumosRequeridos.Add(insumo);
     }
 
-    public void DescontarInsumos()
-    {
-        foreach (var detalle in InsumosRequeridos)
-        {
-            if (detalle.Insumo != null)
-            {
-                detalle.Insumo.DescontarStock(detalle.CantidadUsada);
-            }
-        }
-    }
 }

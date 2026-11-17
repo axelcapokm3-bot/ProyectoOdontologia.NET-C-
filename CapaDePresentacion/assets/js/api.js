@@ -16,6 +16,7 @@ const Api = {
   clearSession() {
     localStorage.removeItem(APP_CONFIG.tokenKey);
     localStorage.removeItem(APP_CONFIG.refreshTokenKey);
+    localStorage.removeItem(APP_CONFIG.userKey);
   },
 
   async request(endpoint, options = {}) {
@@ -38,35 +39,57 @@ const Api = {
     } catch (error) {
       // Una URL anterior puede quedar guardada en el navegador aunque el backend
       // vuelva a usar la URL predeterminada del proyecto.
-      if (configuredUrl === APP_CONFIG.apiBaseUrl) throw error;
+      if (configuredUrl === APP_CONFIG.apiBaseUrl) {
+        throw new Error(`No se pudo conectar con la API en ${APP_CONFIG.apiBaseUrl}.`);
+      }
 
-      response = await request(APP_CONFIG.apiBaseUrl);
-      localStorage.removeItem(APP_CONFIG.storageKey);
+      try {
+        response = await request(APP_CONFIG.apiBaseUrl);
+        localStorage.removeItem(APP_CONFIG.storageKey);
+      } catch (_) {
+        throw new Error(`No se pudo conectar con la API en ${APP_CONFIG.apiBaseUrl}.`);
+      }
     }
 
-   if (!response.ok) {
+    if (!response.ok) {
+      const esLogin = endpoint.toLowerCase() === "auth/login";
 
-  if (response.status === 401) {
-    this.clearSession();
-    window.location.href = "Login.html";
-    throw new Error("Sesión expirada o no autorizada. Por favor, inicia sesión.");
-  }
+      if (response.status === 401 && !esLogin) {
+        this.clearSession();
+        window.location.href = "Login.html";
+        throw new Error("Sesión expirada o no autorizada. Por favor, inicia sesión.");
+      }
 
-  let message = `La API respondió con el código ${response.status}.`;
+      if (response.status === 403) {
+        throw new Error("Tu rol no tiene permisos para realizar esta acción.");
+      }
+
+      let message = `La API respondió con el código ${response.status}.`;
       try {
-        const detail = await response.json();
-        message = detail.title || detail.message || detail.errors?.[Object.keys(detail.errors)[0]]?.[0] || message;
+        const problema = await response.json();
+        message = problema.detail || problema.title || problema.message || problema.errors?.[Object.keys(problema.errors)[0]]?.[0] || message;
       } catch (_) { }
       throw new Error(message);
     }
-    if (response.status === 204 ) return null;
-    return response.json();
+
+    if (response.status === 204) return null;
+
+    // Algunos POST del backend responden 201 sin cuerpo.
+    const raw = await response.text();
+    if (!raw) return null;
+
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("json")) {
+      try { return JSON.parse(raw); } catch (_) { return raw; }
+    }
+    return raw;
   },
 
   list(endpoint) { return this.request(endpoint); },
   search(endpoint, texto) { return this.request(`${endpoint}/buscar?texto=${encodeURIComponent(texto)}`); },
   create(endpoint, payload) { return this.request(endpoint, { method: "POST", body: JSON.stringify(payload) }); },
   update(endpoint, id, payload) { return this.request(`${endpoint}/${id}`, { method: "PUT", body: JSON.stringify(payload) }); },
+  patch(endpoint, id, action) { return this.request(`${endpoint}/${id}/${action}`, { method: "PATCH" }); },
   remove(endpoint, id) { return this.request(`${endpoint}/${id}`, { method: "DELETE" }); },
   login(payload) { return this.request("Auth/login", { method: "POST", body: JSON.stringify(payload) }); },
   register(payload) { return this.request("Auth/register", { method: "POST", body: JSON.stringify(payload) }); },

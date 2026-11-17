@@ -76,6 +76,7 @@ public class InsumosServiceTests
         Assert.NotNull(resultado);
         Assert.Equal(3, resultado.Id);
         Assert.Equal(insumo.Nombre, resultado.Nombre);
+        Assert.Equal(insumo.StockMinimo, resultado.StockMinimo);
     }
 
     [Fact]

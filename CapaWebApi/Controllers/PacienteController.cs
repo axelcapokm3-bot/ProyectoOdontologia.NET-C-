@@ -8,7 +8,7 @@ namespace CapaWebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin,Odontologo,Recepcion")]
+    [Authorize(Roles = "Admin,Odontologo,Recepcionista")]
     public class PacienteController : ControllerBase
     {
         private readonly IPacienteService _pacienteService;

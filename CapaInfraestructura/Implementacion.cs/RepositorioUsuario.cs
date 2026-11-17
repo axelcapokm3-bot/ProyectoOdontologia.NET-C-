@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using CapaAplicacion.Interfaces;
 using CapaDominio.Entidades;
 using CapaInfraestructura.Servicios;
+using Microsoft.Extensions.Configuration;
 
 namespace CapaInfraestructura.Implementacion;
 
@@ -10,19 +11,28 @@ public class RepositorioUsuario : IRepositorioUsuario
     private readonly ConcurrentDictionary<int, Usuario> _usuarios = new();
     private int _contadorId = 0;
 
-    public RepositorioUsuario()
+    public RepositorioUsuario(IConfiguration? configuration = null)
     {
         SincronizarContadorInicial();
 
-        var hasher = new PasswordHasherBCrypt();
-        var admin = new Usuario(
-            IdAutoIncrementoSincrono(),
-            "admin",
-            "admin@local.com",
-            hasher.Hash("Admin123!"),
-            RolUsuario.Admin);
+        string? passwordAdmin = configuration?["Seed:AdminPassword"];
 
-        _usuarios.TryAdd(admin.Id, admin);
+        if (string.IsNullOrWhiteSpace(passwordAdmin))
+        {
+            Console.WriteLine("[ADVERTENCIA] 'Seed:AdminPassword' no está configurado (User Secrets o variables de entorno). No se sembró el usuario admin.");
+        }
+        else
+        {
+            var hasher = new PasswordHasherBCrypt();
+            var admin = new Usuario(
+                IdAutoIncrementoSincrono(),
+                "admin",
+                "admin@local.com",
+                hasher.Hash(passwordAdmin),
+                RolUsuario.Admin);
+
+            _usuarios.TryAdd(admin.Id, admin);
+        }
     }
 
     public Task<IReadOnlyCollection<Usuario>> ObtenerTodosAsync()

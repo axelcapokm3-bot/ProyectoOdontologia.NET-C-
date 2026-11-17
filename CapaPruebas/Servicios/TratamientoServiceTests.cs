@@ -83,6 +83,22 @@ public class TratamientoServiceTests
     }
 
     [Fact]
+    public async Task RegistrarTratamientoAsync_StockInsuficiente_LanzaExcepcionSinPersistirNiConfirmar()
+    {
+        // Arrange
+        _mockInsumos
+            .Setup(r => r.ObtenerInsumoPorId(10))
+            .ReturnsAsync(new Insumo(10, "Anestesia Lidocaina", CategoriaInsumo.Anestesia, 1));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<StockInsuficienteException>(
+            () => _servicio.RegistrarTratamientoAsync(CrearDto()));
+
+        _mockTratamientos.Verify(r => r.AgregarTratamiento(It.IsAny<Tratamiento>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task RegistrarTratamientoAsync_SinInsumos_LanzaArgumentExceptionSinAbrirTransaccion()
     {
         // Arrange
@@ -127,5 +143,103 @@ public class TratamientoServiceTests
         // Assert
         Assert.True(resultado);
         _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ObtenerTratamientoPorIdAsync_IdExistente_MapeaInsumosConElContratoDelInput()
+    {
+        // Arrange
+        Tratamiento tratamiento = new Tratamiento(
+            1,
+            "Limpieza",
+            5000m,
+            new List<TratamientoInsumo> { new TratamientoInsumo(1, 10, 2) });
+
+        _mockTratamientos
+            .Setup(r => r.ObtenerTratamientoPorId(1))
+            .ReturnsAsync(tratamiento);
+
+        // Act
+        var resultado = await _servicio.ObtenerTratamientoPorIdAsync(1);
+
+        // Assert
+        Assert.Single(resultado.TratamientoInsumo);
+        Assert.Equal(10, resultado.TratamientoInsumo[0].InsumoId);
+        Assert.Equal(2, resultado.TratamientoInsumo[0].CantidadUsada);
+    }
+
+    [Fact]
+    public async Task ConsumirInsumosAsync_StockSuficiente_DescuentaYConfirmaTransaccion()
+    {
+        // Arrange
+        Tratamiento tratamiento = new Tratamiento(
+            1,
+            "Limpieza",
+            5000m,
+            new List<TratamientoInsumo> { new TratamientoInsumo(0, 10, 2) });
+
+        _mockTratamientos
+            .Setup(r => r.ObtenerPorIdConInsumosAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tratamiento);
+
+        Insumo? insumoActualizado = null;
+
+        _mockInsumos
+            .Setup(r => r.ActualizarInsumo(It.IsAny<Insumo>()))
+            .Callback<Insumo>(insumo => insumoActualizado = insumo)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _servicio.ConsumirInsumosAsync(1);
+
+        // Assert
+        Assert.NotNull(insumoActualizado);
+        Assert.Equal(498, insumoActualizado!.Stock);
+        _mockUnitOfWork.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockInsumos.Verify(r => r.ActualizarInsumo(It.IsAny<Insumo>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ConsumirInsumosAsync_StockInsuficiente_LanzaExcepcionSinActualizarNiConfirmar()
+    {
+        // Arrange
+        Insumo sinStockSuficiente = new Insumo(
+            10,
+            "Anestesia Lidocaina",
+            CategoriaInsumo.Anestesia,
+            1);
+
+        _mockInsumos
+            .Setup(r => r.ObtenerInsumoPorId(10))
+            .ReturnsAsync(sinStockSuficiente);
+
+        Tratamiento tratamiento = new Tratamiento(
+            1,
+            "Limpieza",
+            5000m,
+            new List<TratamientoInsumo> { new TratamientoInsumo(0, 10, 2) });
+
+        _mockTratamientos
+            .Setup(r => r.ObtenerPorIdConInsumosAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tratamiento);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<StockInsuficienteException>(
+            () => _servicio.ConsumirInsumosAsync(1));
+
+        _mockInsumos.Verify(r => r.ActualizarInsumo(It.IsAny<Insumo>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ConsumirInsumosAsync_TratamientoInexistente_LanzaTratamientoNoEncontrado()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<TratamientoNoEncontradoException>(
+            () => _servicio.ConsumirInsumosAsync(99));
+
+        _mockInsumos.Verify(r => r.ActualizarInsumo(It.IsAny<Insumo>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 }

@@ -22,8 +22,9 @@ public class TurnosServiceConcurrenciaTests
         TurnoRepositorySqlite turnos = new TurnoRepositorySqlite(unitOfWork);
         TratamientoRepositorySqlite tratamientos = new TratamientoRepositorySqlite(unitOfWork);
         PacienteRepositorySqlite pacientes = new PacienteRepositorySqlite(unitOfWork);
+        OdontologoRepositorySqlite odontologos = new OdontologoRepositorySqlite(unitOfWork);
 
-        return new TurnosService(turnos, tratamientos, pacientes, unitOfWork);
+        return new TurnosService(turnos, tratamientos, pacientes, unitOfWork, null, odontologos);
     }
 
     private static CrearTurnoRequestDto CrearDto(DateTime inicio)
@@ -59,6 +60,15 @@ public class TurnosServiceConcurrenciaTests
                 new DateTime(1990, 1, 1),
                 "555-0100",
                 "concurrente@example.com"));
+
+        OdontologoRepositorySqlite odontologos = new OdontologoRepositorySqlite(unitOfWork);
+        await odontologos.AgregarOdontologo(
+            new Odontologo(
+                1,
+                "Odontologo Concurrente",
+                "MAT-1234",
+                "Odontologia General",
+                55500010));
     }
 
     private static async Task RegistrarTurnoAsync(SqliteTestDatabase baseDeDatos, DateTime inicio)

@@ -1,6 +1,7 @@
 namespace ProyectoOdontologia.CapaAplicacion.ServiciosAplicacion;
 
 using global::CapaAplicacion.Interfaces;
+using global::CapaAplicacion.Mappers;
 using global::ProyectoOdontologia.CapaAplicacion.DtosInput;
 using global::ProyectoOdontologia.CapaAplicacion.DtosOutput;
 using global::CapaDominio.Entidades;
@@ -60,14 +61,14 @@ public class OdontologoService : IOdontologoService
     public async Task<IEnumerable<OdontologoOutputDto>> ObtenerTodosLosOdontologosAsync()
     {
         IEnumerable<Odontologo> odontologos = await _repositorioOdontologo.ObtenerTodos();
-        List<OdontologoOutputDto> resultado = new List<OdontologoOutputDto>();
+        List<Odontologo> listaOdontologos = new List<Odontologo>();
 
         foreach (Odontologo odontologo in odontologos)
         {
-            resultado.Add(CrearDto(odontologo));
+            listaOdontologos.Add(odontologo);
         }
 
-        return resultado;
+        return OdontologoMapper.MapMany(listaOdontologos);
     }
 
     public async Task<OdontologoOutputDto> ObtenerOdontologoPorIdAsync(int id)
@@ -79,20 +80,13 @@ public class OdontologoService : IOdontologoService
             throw new OdontologoNoEncontradoException(id);
         }
 
-        return CrearDto(odontologo);
+        return OdontologoMapper.Map(odontologo);
     }
 
     public async Task<List<OdontologoOutputDto>> BuscarOdontologosAsync(string criterio)
     {
         List<Odontologo> odontologos = await _repositorioOdontologo.BuscarOdontologos(criterio);
-        List<OdontologoOutputDto> resultado = new List<OdontologoOutputDto>();
-
-        foreach (Odontologo odontologo in odontologos)
-        {
-            resultado.Add(CrearDto(odontologo));
-        }
-
-        return resultado;
+        return OdontologoMapper.MapMany(odontologos);
     }
 
     public async Task ActualizarOdontologoAsync(int id, OdontologoInputDto odontologoDto)
@@ -190,13 +184,4 @@ public class OdontologoService : IOdontologoService
         return usuario.Id;
     }
 
-    private static OdontologoOutputDto CrearDto(Odontologo odontologo)
-    {
-        return new OdontologoOutputDto(
-            odontologo.Id,
-            odontologo.Nombre,
-            odontologo.Matricula,
-            odontologo.Especialidad,
-            odontologo.Telefono);
-    }
 }

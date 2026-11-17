@@ -19,6 +19,24 @@ public class TurnoRepositorySqliteTests
         await repositorio.AgregarTratamiento(tratamiento);
     }
 
+    private static async Task CrearPacientesAsync(PacienteRepositorySqlite repositorio)
+    {
+        await repositorio.AgregarPaciente(
+            new Paciente(1, "Paciente", "Uno", new DateTime(1990, 1, 1), "555-0001", "paciente1@example.com"));
+
+        await repositorio.AgregarPaciente(
+            new Paciente(2, "Paciente", "Dos", new DateTime(1991, 1, 1), "555-0002", "paciente2@example.com"));
+    }
+
+    private static async Task CrearOdontologosAsync(OdontologoRepositorySqlite repositorio)
+    {
+        await repositorio.AgregarOdontologo(
+            new Odontologo(1, "Odontologo Uno", "MAT-1111", "Odontologia General", 55500011));
+
+        await repositorio.AgregarOdontologo(
+            new Odontologo(2, "Odontologo Dos", "MAT-2222", "Odontologia General", 55500022));
+    }
+
     [Fact]
     public async Task Inicializador_CreaTablasEIndiceDeAgenda()
     {
@@ -66,6 +84,12 @@ public class TurnoRepositorySqliteTests
             TratamientoRepositorySqlite tratamientos = new TratamientoRepositorySqlite(unitOfWork);
             await CrearTratamientoAsync(tratamientos);
 
+            PacienteRepositorySqlite pacientes = new PacienteRepositorySqlite(unitOfWork);
+            await CrearPacientesAsync(pacientes);
+
+            OdontologoRepositorySqlite odontologos = new OdontologoRepositorySqlite(unitOfWork);
+            await CrearOdontologosAsync(odontologos);
+
             TurnoRepositorySqlite repositorio = new TurnoRepositorySqlite(unitOfWork);
             id = await repositorio.ObtenerProximoIdAsync();
 
@@ -101,6 +125,12 @@ public class TurnoRepositorySqliteTests
         TratamientoRepositorySqlite tratamientos = new TratamientoRepositorySqlite(unitOfWork);
         await CrearTratamientoAsync(tratamientos);
 
+        PacienteRepositorySqlite pacientes = new PacienteRepositorySqlite(unitOfWork);
+        await CrearPacientesAsync(pacientes);
+
+        OdontologoRepositorySqlite odontologos = new OdontologoRepositorySqlite(unitOfWork);
+        await CrearOdontologosAsync(odontologos);
+
         TurnoRepositorySqlite repositorio = new TurnoRepositorySqlite(unitOfWork);
         DateTime fecha = new DateTime(2026, 6, 1);
 
@@ -129,6 +159,12 @@ public class TurnoRepositorySqliteTests
         TratamientoRepositorySqlite tratamientos = new TratamientoRepositorySqlite(unitOfWork);
         await CrearTratamientoAsync(tratamientos);
 
+        PacienteRepositorySqlite pacientes = new PacienteRepositorySqlite(unitOfWork);
+        await CrearPacientesAsync(pacientes);
+
+        OdontologoRepositorySqlite odontologos = new OdontologoRepositorySqlite(unitOfWork);
+        await CrearOdontologosAsync(odontologos);
+
         TurnoRepositorySqlite repositorio = new TurnoRepositorySqlite(unitOfWork);
         int id = await repositorio.ObtenerProximoIdAsync();
         DateTime inicio = new DateTime(2026, 6, 1, 9, 0, 0);
@@ -154,6 +190,12 @@ public class TurnoRepositorySqliteTests
         await using UnitOfWorkSqlite unitOfWork = baseDeDatos.CrearUnitOfWork();
         TratamientoRepositorySqlite tratamientos = new TratamientoRepositorySqlite(unitOfWork);
         await CrearTratamientoAsync(tratamientos);
+
+        PacienteRepositorySqlite pacientes = new PacienteRepositorySqlite(unitOfWork);
+        await CrearPacientesAsync(pacientes);
+
+        OdontologoRepositorySqlite odontologos = new OdontologoRepositorySqlite(unitOfWork);
+        await CrearOdontologosAsync(odontologos);
 
         TurnoRepositorySqlite repositorio = new TurnoRepositorySqlite(unitOfWork);
         int id = await repositorio.ObtenerProximoIdAsync();
@@ -209,6 +251,12 @@ public class TurnoRepositorySqliteTests
         TratamientoRepositorySqlite tratamientos = new TratamientoRepositorySqlite(unitOfWork);
         await CrearTratamientoAsync(tratamientos);
 
+        PacienteRepositorySqlite pacientes = new PacienteRepositorySqlite(unitOfWork);
+        await CrearPacientesAsync(pacientes);
+
+        OdontologoRepositorySqlite odontologos = new OdontologoRepositorySqlite(unitOfWork);
+        await CrearOdontologosAsync(odontologos);
+
         TurnoRepositorySqlite repositorio = new TurnoRepositorySqlite(unitOfWork);
         int id = await repositorio.ObtenerProximoIdAsync();
         DateTime inicio = new DateTime(2026, 6, 1, 9, 0, 0);
@@ -231,6 +279,12 @@ public class TurnoRepositorySqliteTests
         await using UnitOfWorkSqlite unitOfWork = baseDeDatos.CrearUnitOfWork();
         TratamientoRepositorySqlite tratamientos = new TratamientoRepositorySqlite(unitOfWork);
         await CrearTratamientoAsync(tratamientos);
+
+        PacienteRepositorySqlite pacientes = new PacienteRepositorySqlite(unitOfWork);
+        await CrearPacientesAsync(pacientes);
+
+        OdontologoRepositorySqlite odontologos = new OdontologoRepositorySqlite(unitOfWork);
+        await CrearOdontologosAsync(odontologos);
 
         TurnoRepositorySqlite repositorio = new TurnoRepositorySqlite(unitOfWork);
         int id = await repositorio.ObtenerProximoIdAsync();

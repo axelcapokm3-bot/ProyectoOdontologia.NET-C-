@@ -19,6 +19,12 @@ public class DapperMappingSqliteTests
 INSERT INTO Tratamientos (Id, Descripcion, Costo, DuracionEstimadaTicks)
 VALUES (1, 'Consulta', '1500.75', 27000000000);
 
+INSERT INTO Pacientes (Id, Nombre, Apellido, FechaNacimiento, Telefono, Email)
+VALUES (7, 'Paciente', 'Siete', '1990-01-01', '555-0007', 'paciente7@example.com');
+
+INSERT INTO Odontologos (Id, Nombre, Matricula, Especialidad, Telefono)
+VALUES (3, 'Odontologo Tres', 'MAT-3333', 'Odontologia General', 55500003);
+
 INSERT INTO Turnos (Id, FechaHoraInicio, FechaHoraFin, PacienteId, OdontologoId, TratamientoId, Estado)
 VALUES (1, '2026-06-01 09:00:00', '2026-06-01 09:45:00', 7, 3, 1, 3);");
 
@@ -58,6 +64,12 @@ VALUES (1, '2026-06-01 09:00:00', '2026-06-01 09:45:00', 7, 3, 1, 3);");
 INSERT INTO Tratamientos (Id, Descripcion, Costo, DuracionEstimadaTicks)
 VALUES (1, 'Inválido', '-1', 27000000000);
 
+INSERT INTO Pacientes (Id, Nombre, Apellido, FechaNacimiento, Telefono, Email)
+VALUES (7, 'Paciente', 'Siete', '1990-01-01', '555-0007', 'paciente7@example.com');
+
+INSERT INTO Odontologos (Id, Nombre, Matricula, Especialidad, Telefono)
+VALUES (3, 'Odontologo Tres', 'MAT-3333', 'Odontologia General', 55500003);
+
 INSERT INTO Turnos (Id, FechaHoraInicio, FechaHoraFin, PacienteId, OdontologoId, TratamientoId, Estado)
 VALUES (1, '2026-06-01 10:00:00', '2026-06-01 09:00:00', 7, 3, 1, 1);");
 
@@ -72,5 +84,32 @@ VALUES (1, '2026-06-01 10:00:00', '2026-06-01 09:00:00', 7, 3, 1, 1);");
 
         Assert.IsType<ArgumentException>(errorTratamiento.InnerException);
         Assert.IsType<ArgumentOutOfRangeException>(errorTurno.InnerException);
+    }
+
+    [Fact]
+    public async Task Dapper_TratamientoInsumoInvalido_LanzaExcepcionDeInvariante()
+    {
+        // Arrange
+        await using SqliteTestDatabase baseDeDatos = new();
+        await baseDeDatos.InicializarAsync();
+        await using UnitOfWorkSqlite unitOfWork = baseDeDatos.CrearUnitOfWork();
+
+        await unitOfWork.Connection.ExecuteAsync(@"
+INSERT INTO Tratamientos (Id, Descripcion, Costo, DuracionEstimadaTicks)
+VALUES (1, 'Consulta', '1500.75', 27000000000);
+
+INSERT INTO Insumos (Id, Nombre, Categoria, Stock, StockReservado, StockMinimo, PuntoPedido, StockSeguridad, StockMaximo)
+VALUES (1, 'Anestesia Lidocaina', 2, 100, 0, 100, 100, 50, 300);
+
+INSERT INTO TratamientoInsumos (TratamientoId, InsumoId, CantidadUsada)
+VALUES (1, 1, 0);");
+
+        // Act
+        DataException error = await Assert.ThrowsAsync<DataException>(() =>
+            unitOfWork.Connection.QuerySingleOrDefaultAsync<TratamientoInsumo>(
+                "SELECT TratamientoId, InsumoId, CantidadUsada FROM TratamientoInsumos WHERE TratamientoId = 1;"));
+
+        // Assert
+        Assert.IsType<ArgumentException>(error.InnerException);
     }
 }

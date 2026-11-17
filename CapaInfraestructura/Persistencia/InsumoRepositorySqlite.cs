@@ -11,9 +11,6 @@ using Dapper;
 public sealed class InsumoRepositorySqlite : IRepositorioInsumos
 {
     private const string FormatoFecha = "yyyy-MM-dd HH:mm:ss";
-    private const int TipoMovimientoEntrada = 1;
-    private const int TipoMovimientoSalida = 2;
-    private const int TipoMovimientoAjuste = 3;
 
     private readonly IUnitOfWork _unitOfWork;
 
@@ -25,7 +22,7 @@ public sealed class InsumoRepositorySqlite : IRepositorioInsumos
     public async Task<IEnumerable<Insumo>> ObtenerTodos()
     {
         const string sql = @"
-SELECT Id, Nombre, Categoria, Stock, StockReservado, PuntoPedido, StockSeguridad, StockMaximo
+SELECT Id, Nombre, Categoria, Stock, StockReservado, StockMinimo, PuntoPedido, StockSeguridad, StockMaximo
 FROM Insumos
 ORDER BY Nombre;";
 
@@ -48,7 +45,7 @@ ORDER BY Nombre;";
             throw new ArgumentOutOfRangeException(nameof(id), "El ID debe ser mayor a cero.");
 
         const string sql = @"
-SELECT Id, Nombre, Categoria, Stock, StockReservado, PuntoPedido, StockSeguridad, StockMaximo
+SELECT Id, Nombre, Categoria, Stock, StockReservado, StockMinimo, PuntoPedido, StockSeguridad, StockMaximo
 FROM Insumos
 WHERE Id = @Id;";
 
@@ -75,7 +72,7 @@ WHERE Id = @Id;";
         }
 
         const string sql = @"
-SELECT Id, Nombre, Categoria, Stock, StockReservado, PuntoPedido, StockSeguridad, StockMaximo
+SELECT Id, Nombre, Categoria, Stock, StockReservado, StockMinimo, PuntoPedido, StockSeguridad, StockMaximo
 FROM Insumos
 WHERE CAST(Id AS TEXT) = @Texto
    OR Nombre LIKE @Patron
@@ -121,8 +118,8 @@ ORDER BY Nombre;";
         try
         {
             const string sql = @"
-INSERT INTO Insumos (Id, Nombre, Categoria, Stock, StockReservado, PuntoPedido, StockSeguridad, StockMaximo)
-VALUES (@Id, @Nombre, @Categoria, @Stock, @StockReservado, @PuntoPedido, @StockSeguridad, @StockMaximo);";
+INSERT INTO Insumos (Id, Nombre, Categoria, Stock, StockReservado, StockMinimo, PuntoPedido, StockSeguridad, StockMaximo)
+VALUES (@Id, @Nombre, @Categoria, @Stock, @StockReservado, @StockMinimo, @PuntoPedido, @StockSeguridad, @StockMaximo);";
 
             int filas = await _unitOfWork.Connection.ExecuteAsync(
                 new CommandDefinition(
@@ -168,6 +165,7 @@ SET Nombre = @Nombre,
     Categoria = @Categoria,
     Stock = @Stock,
     StockReservado = @StockReservado,
+    StockMinimo = @StockMinimo,
     PuntoPedido = @PuntoPedido,
     StockSeguridad = @StockSeguridad,
     StockMaximo = @StockMaximo
@@ -244,17 +242,26 @@ WHERE Id = @Id;";
 
     private async Task RegistrarMovimientoAsync(int insumoId, int stockAnterior, int stockNuevo)
     {
-        int tipoMovimiento = TipoMovimientoAjuste;
+        TipoMovimientoStock tipoMovimiento = TipoMovimientoStock.Ajuste;
         int cantidad = Math.Abs(stockNuevo - stockAnterior);
 
         if (stockNuevo > stockAnterior)
         {
-            tipoMovimiento = TipoMovimientoEntrada;
+            tipoMovimiento = TipoMovimientoStock.Entrada;
         }
         else if (stockNuevo < stockAnterior)
         {
-            tipoMovimiento = TipoMovimientoSalida;
+            tipoMovimiento = TipoMovimientoStock.Salida;
         }
+
+        MovimientoStock movimiento = new MovimientoStock(
+            insumoId,
+            tipoMovimiento,
+            cantidad,
+            stockAnterior,
+            stockNuevo,
+            DateTime.Now,
+            "Actualización de stock");
 
         const string sql = @"
 INSERT INTO MovimientosStock (InsumoId, TipoMovimiento, Cantidad, StockAnterior, StockNuevo, FechaHora, Motivo)
@@ -265,13 +272,13 @@ VALUES (@InsumoId, @TipoMovimiento, @Cantidad, @StockAnterior, @StockNuevo, @Fec
                 sql,
                 new
                 {
-                    InsumoId = insumoId,
-                    TipoMovimiento = tipoMovimiento,
-                    Cantidad = cantidad,
-                    StockAnterior = stockAnterior,
-                    StockNuevo = stockNuevo,
-                    FechaHora = DateTime.Now.ToString(FormatoFecha, CultureInfo.InvariantCulture),
-                    Motivo = "Actualización de stock"
+                    InsumoId = movimiento.InsumoId,
+                    TipoMovimiento = (int)movimiento.TipoMovimiento,
+                    Cantidad = movimiento.Cantidad,
+                    StockAnterior = movimiento.StockAnterior,
+                    StockNuevo = movimiento.StockNuevo,
+                    FechaHora = movimiento.FechaHora.ToString(FormatoFecha, CultureInfo.InvariantCulture),
+                    Motivo = movimiento.Motivo
                 },
                 _unitOfWork.Transaction));
     }
@@ -281,6 +288,7 @@ VALUES (@InsumoId, @TipoMovimiento, @Cantidad, @StockAnterior, @StockNuevo, @Fec
         int id = checked((int)fila.Id);
         int stock = checked((int)fila.Stock);
         int stockReservado = checked((int)fila.StockReservado);
+        int stockMinimo = checked((int)fila.StockMinimo);
         int puntoPedido = checked((int)fila.PuntoPedido);
         int stockSeguridad = checked((int)fila.StockSeguridad);
         int stockMaximo = checked((int)fila.StockMaximo);
@@ -294,6 +302,7 @@ VALUES (@InsumoId, @TipoMovimiento, @Cantidad, @StockAnterior, @StockNuevo, @Fec
             stockReservado,
             puntoPedido,
             stockSeguridad,
+            stockMinimo,
             stockMaximo);
     }
 
@@ -306,6 +315,7 @@ VALUES (@InsumoId, @TipoMovimiento, @Cantidad, @StockAnterior, @StockNuevo, @Fec
             Categoria = (int)insumo.Categoria,
             Stock = insumo.Stock,
             StockReservado = insumo.StockReservado,
+            StockMinimo = insumo.StockMinimo,
             PuntoPedido = insumo.PuntoPedido,
             StockSeguridad = insumo.StockSeguridad,
             StockMaximo = insumo.StockMaximo
@@ -320,6 +330,7 @@ internal sealed class InsumoRow
     public long Categoria { get; set; }
     public long Stock { get; set; }
     public long StockReservado { get; set; }
+    public long StockMinimo { get; set; }
     public long PuntoPedido { get; set; }
     public long StockSeguridad { get; set; }
     public long StockMaximo { get; set; }

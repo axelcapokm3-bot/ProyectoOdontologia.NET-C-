@@ -21,7 +21,9 @@ public class TurnosServiceTests
     private readonly Mock<IRepositorioTurnos> _mockRepositorio;
     private readonly Mock<IRepositorioTratamiento> _mockTratamientos;
     private readonly Mock<IRepositorioPaciente> _mockPacientes;
+    private readonly Mock<IRepositorioOdontologo> _mockOdontologos;
     private readonly Mock<IUnitOfWork> _mockUnitOfWork;
+    private readonly Mock<ITratamientoService> _mockTratamientoService;
     private readonly TurnosService _servicio;
 
     public TurnosServiceTests()
@@ -29,7 +31,9 @@ public class TurnosServiceTests
         _mockRepositorio = new Mock<IRepositorioTurnos>();
         _mockTratamientos = new Mock<IRepositorioTratamiento>();
         _mockPacientes = new Mock<IRepositorioPaciente>();
+        _mockOdontologos = new Mock<IRepositorioOdontologo>();
         _mockUnitOfWork = new Mock<IUnitOfWork>();
+        _mockTratamientoService = new Mock<ITratamientoService>();
         _mockRepositorio
             .Setup(r => r.ObtenerTodos())
             .ReturnsAsync(new List<Turno>());
@@ -45,11 +49,16 @@ public class TurnosServiceTests
         _mockPacientes
             .Setup(r => r.ObtenerPacientePorId(It.IsAny<int>()))
             .ReturnsAsync(EntidadesFactory.CrearPaciente(id: 1));
+        _mockOdontologos
+            .Setup(r => r.ObtenerOdontologoPorId(It.IsAny<int>()))
+            .ReturnsAsync(EntidadesFactory.CrearOdontologo(id: 1));
         _servicio = new TurnosService(
             _mockRepositorio.Object,
             _mockTratamientos.Object,
             _mockPacientes.Object,
-            _mockUnitOfWork.Object);
+            _mockUnitOfWork.Object,
+            _mockTratamientoService.Object,
+            _mockOdontologos.Object);
     }
 
     private static TurnoDtoInput CrearTurnoDto(int odontologoId = 1, int pacienteId = 1)
@@ -184,8 +193,11 @@ public class TurnosServiceTests
         // Assert
         Assert.NotNull(resultado);
         Assert.Equal(3, resultado.Id);
+        Assert.Equal(turno.FechaHoraInicio, resultado.FechaHoraInicio);
+        Assert.Equal(turno.FechaHoraFin, resultado.FechaHoraFin);
         Assert.Equal(turno.PacienteId, resultado.PacienteId);
         Assert.Equal(turno.OdontologoId, resultado.OdontologoId);
+        Assert.Equal(turno.Estado, resultado.Estado);
     }
 
     [Fact]
@@ -250,6 +262,145 @@ public class TurnosServiceTests
         // Act & Assert
         await Assert.ThrowsAsync<TurnoNoEncontradoException>(() => _servicio.ActualizarTurnoAsync(99, CrearTurnoDto()));
         _mockRepositorio.Verify(r => r.ActualizarTurno(It.IsAny<Turno>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ActualizarTurnoAsync_TurnoCompletado_LanzaDomainExceptionYNoActualiza()
+    {
+        // Arrange
+        DateTime fecha = DateTime.Now.AddDays(3).Date;
+        Turno completado = new Turno(
+            1,
+            fecha.AddHours(10),
+            fecha.AddHours(11),
+            1,
+            1,
+            1,
+            EstadoTurno.Completado);
+
+        _mockRepositorio
+            .Setup(r => r.ObtenerTurnoPorId(1))
+            .ReturnsAsync(completado);
+
+        TurnoDtoInput dto = new TurnoDtoInput(
+            fecha.AddHours(10),
+            fecha.AddHours(11),
+            1,
+            1,
+            1);
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<DomainException>(() => _servicio.ActualizarTurnoAsync(1, dto));
+        _mockRepositorio.Verify(r => r.ActualizarTurno(It.IsAny<Turno>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ActualizarTurnoAsync_TurnoCancelado_LanzaDomainExceptionYNoActualiza()
+    {
+        // Arrange
+        DateTime fecha = DateTime.Now.AddDays(3).Date;
+        Turno cancelado = new Turno(
+            1,
+            fecha.AddHours(10),
+            fecha.AddHours(11),
+            1,
+            1,
+            1);
+        cancelado.Cancelar();
+
+        _mockRepositorio
+            .Setup(r => r.ObtenerTurnoPorId(1))
+            .ReturnsAsync(cancelado);
+
+        TurnoDtoInput dto = new TurnoDtoInput(
+            fecha.AddHours(10),
+            fecha.AddHours(11),
+            1,
+            1,
+            1);
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<DomainException>(() => _servicio.ActualizarTurnoAsync(1, dto));
+        _mockRepositorio.Verify(r => r.ActualizarTurno(It.IsAny<Turno>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ActualizarTurnoAsync_SolapaConOtroTurno_LanzaTurnoSolapadoExceptionYNoActualiza()
+    {
+        // Arrange
+        DateTime fecha = DateTime.Now.AddDays(3).Date;
+        Turno existente = new Turno(
+            1,
+            fecha.AddHours(10),
+            fecha.AddHours(11),
+            1,
+            1,
+            1);
+        Turno otro = new Turno(
+            2,
+            fecha.AddHours(10).AddMinutes(30),
+            fecha.AddHours(11).AddMinutes(30),
+            2,
+            1,
+            1);
+
+        _mockRepositorio
+            .Setup(r => r.ObtenerTurnoPorId(1))
+            .ReturnsAsync(existente);
+        _mockRepositorio
+            .Setup(r => r.ObtenerTurnosDelDiaAsync(1, fecha, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Turno> { existente, otro });
+
+        TurnoDtoInput dto = new TurnoDtoInput(
+            fecha.AddHours(10),
+            fecha.AddHours(11),
+            1,
+            1,
+            1);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<TurnoSolapadoException>(() => _servicio.ActualizarTurnoAsync(1, dto));
+        _mockRepositorio.Verify(r => r.ActualizarTurno(It.IsAny<Turno>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ActualizarTurnoAsync_SoloSeSolapaConsigoMismo_ActualizaElTurno()
+    {
+        // Arrange
+        DateTime fecha = DateTime.Now.AddDays(3).Date;
+        Turno existente = new Turno(
+            1,
+            fecha.AddHours(10),
+            fecha.AddHours(11),
+            1,
+            1,
+            1);
+
+        _mockRepositorio
+            .Setup(r => r.ObtenerTurnoPorId(1))
+            .ReturnsAsync(existente);
+        _mockRepositorio
+            .Setup(r => r.ObtenerTurnosDelDiaAsync(1, fecha, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Turno> { existente });
+
+        TurnoDtoInput dto = new TurnoDtoInput(
+            fecha.AddHours(10),
+            fecha.AddHours(11),
+            1,
+            1,
+            1);
+
+        // Act
+        await _servicio.ActualizarTurnoAsync(1, dto);
+
+        // Assert
+        _mockRepositorio.Verify(
+            r => r.ActualizarTurno(It.Is<Turno>(t => t.Id == 1 && t.Estado == EstadoTurno.Pendiente)),
+            Times.Once);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -458,6 +609,35 @@ public class TurnosServiceTests
     }
 
     [Fact]
+    public async Task RegistrarTurnoAsync_OdontologoInexistente_LanzaOdontologoNoEncontradoYNoPersiste()
+    {
+        // Arrange
+        DateTime inicio = DateTime.Now.AddDays(1).Date.AddHours(9);
+        Tratamiento tratamiento = new Tratamiento(1, "Limpieza", 5000m, new List<TratamientoInsumo>(), TimeSpan.FromMinutes(30));
+
+        _mockTratamientos
+            .Setup(r => r.ObtenerTratamientoPorIdAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tratamiento);
+        _mockOdontologos
+            .Setup(r => r.ObtenerOdontologoPorId(99))
+            .ReturnsAsync((Odontologo?)null);
+
+        CrearTurnoRequestDto dto = new CrearTurnoRequestDto
+        {
+            FechaHoraInicio = inicio,
+            PacienteId = 1,
+            OdontologoId = 99,
+            TratamientoId = 1
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OdontologoNoEncontradoException>(() => _servicio.RegistrarTurnoAsync(dto));
+        _mockRepositorio.Verify(r => r.AgregarTurnoAsync(It.IsAny<Turno>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task RegistrarTurnoAsync_SolapamientoEnAgendaDelDia_LanzaTurnoSolapadoYNoConfirma()
     {
         // Arrange
@@ -484,7 +664,7 @@ public class TurnosServiceTests
         await Assert.ThrowsAsync<TurnoSolapadoException>(() => _servicio.RegistrarTurnoAsync(dto));
         _mockRepositorio.Verify(r => r.AgregarTurnoAsync(It.IsAny<Turno>(), It.IsAny<CancellationToken>()), Times.Never);
         _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
-        _mockUnitOfWork.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -540,6 +720,76 @@ public class TurnosServiceTests
 
         // Act & Assert
         await Assert.ThrowsAsync<TurnoNoEncontradoException>(() => _servicio.CancelarTurnoAsync(123));
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CompletarTurnoAsync_TurnoPendiente_ConsumeInsumosYConfirmaTransaccion()
+    {
+        // Arrange
+        Turno turno = EntidadesFactory.CrearTurno(id: 9);
+
+        _mockRepositorio
+            .Setup(r => r.ObtenerTurnoPorIdAsync(9, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(turno);
+        _mockTratamientoService
+            .Setup(s => s.ConsumirInsumosAsync(turno.TratamientoId, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _servicio.CompletarTurnoAsync(9);
+
+        // Assert
+        Assert.Equal(EstadoTurno.Completado, turno.Estado);
+        _mockTratamientoService.Verify(
+            s => s.ConsumirInsumosAsync(turno.TratamientoId, It.IsAny<CancellationToken>()),
+            Times.Once);
+        _mockRepositorio.Verify(r => r.ActualizarTurnoAsync(turno, It.IsAny<CancellationToken>()), Times.Once);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CompletarTurnoAsync_TurnoYaCompletado_NoVuelveAConsumirInsumos()
+    {
+        // Arrange
+        DateTime inicio = DateTime.Now.AddDays(1);
+        Turno turno = new Turno(9, inicio, inicio.AddHours(1), 1, 1, 1, EstadoTurno.Completado);
+
+        _mockRepositorio
+            .Setup(r => r.ObtenerTurnoPorIdAsync(9, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(turno);
+
+        // Act
+        await _servicio.CompletarTurnoAsync(9);
+
+        // Assert
+        _mockTratamientoService.Verify(
+            s => s.ConsumirInsumosAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _mockRepositorio.Verify(
+            r => r.ActualizarTurnoAsync(It.IsAny<Turno>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CompletarTurnoAsync_TurnoCancelado_LanzaInvalidOperationSinConsumirInsumos()
+    {
+        // Arrange
+        Turno turno = EntidadesFactory.CrearTurno(id: 9);
+        turno.Cancelar();
+
+        _mockRepositorio
+            .Setup(r => r.ObtenerTurnoPorIdAsync(9, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(turno);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _servicio.CompletarTurnoAsync(9));
+
+        _mockTratamientoService.Verify(
+            s => s.ConsumirInsumosAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
         _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 }

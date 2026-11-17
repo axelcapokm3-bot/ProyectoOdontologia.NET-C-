@@ -31,7 +31,7 @@ public class IntervaloDeTiempo
     }
 
   
-    public IntervaloDeTiempo ObtenerHuecos(IntervaloDeTiempo siguiente)
+    public IntervaloDeTiempo? ObtenerHuecos(IntervaloDeTiempo siguiente)
     {
         if (siguiente != null && siguiente.Inicio > Fin)
         {

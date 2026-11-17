@@ -50,6 +50,17 @@ public static class SqliteTypeHandlers
                         typeof(TimeSpan)
                     }));
 
+            SqlMapper.SetTypeMap(
+                typeof(TratamientoInsumo),
+                new ConstructorForzadoTypeMap(
+                    typeof(TratamientoInsumo),
+                    new[]
+                    {
+                        typeof(int),
+                        typeof(int),
+                        typeof(int)
+                    }));
+
             _registrados = true;
         }
     }

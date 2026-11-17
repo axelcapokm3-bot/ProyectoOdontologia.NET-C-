@@ -1,12 +1,14 @@
 namespace ProyectoOdontologia.CapaAplicacion.ServiciosAplicacion;
 
 using global::CapaAplicacion.Interfaces;
+using global::CapaAplicacion.Mappers;
 using global::ProyectoOdontologia.CapaAplicacion.DtosInput;
 using global::ProyectoOdontologia.CapaAplicacion.DtosOutput;
 using global::CapaDominio.Entidades;
 using CapaDominio.Excepciones;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 public class TratamientoService : ITratamientoService
@@ -51,14 +53,14 @@ public class TratamientoService : ITratamientoService
     public async Task<IEnumerable<TratamientoDtoOutput>> ObtenerTodosLosTratamientosAsync()
     {
         IEnumerable<Tratamiento> tratamientos = await _repositorioTratamiento.ObtenerTodos();
-        List<TratamientoDtoOutput> resultado = new List<TratamientoDtoOutput>();
+        List<Tratamiento> listaTratamientos = new List<Tratamiento>();
 
         foreach (Tratamiento tratamiento in tratamientos)
         {
-            resultado.Add(CrearDto(tratamiento));
+            listaTratamientos.Add(tratamiento);
         }
 
-        return resultado;
+        return TratamientoMapper.MapMany(listaTratamientos);
     }
 
     public async Task<TratamientoDtoOutput> ObtenerTratamientoPorIdAsync(int id)
@@ -70,20 +72,13 @@ public class TratamientoService : ITratamientoService
             throw new TratamientoNoEncontradoException(id);
         }
 
-        return CrearDto(tratamiento);
+        return TratamientoMapper.Map(tratamiento);
     }
 
     public async Task<List<TratamientoDtoOutput>> BuscarTratamientosAsync(string criterio)
     {
         List<Tratamiento> tratamientos = await _repositorioTratamiento.BuscarTratamientos(criterio);
-        List<TratamientoDtoOutput> resultado = new List<TratamientoDtoOutput>();
-
-        foreach (Tratamiento tratamiento in tratamientos)
-        {
-            resultado.Add(CrearDto(tratamiento));
-        }
-
-        return resultado;
+        return TratamientoMapper.MapMany(tratamientos);
     }
 
     public async Task ActualizarTratamientoAsync(int id, TratamientoDtoInput tratamientoEditado)
@@ -133,6 +128,64 @@ public class TratamientoService : ITratamientoService
         await _unitOfWork.CommitAsync();
 
         return true;
+    }
+
+    public async Task ConsumirInsumosAsync(int tratamientoId, CancellationToken cancellationToken = default)
+    {
+        if (tratamientoId <= 0)
+        {
+            throw new TratamientoNoEncontradoException(tratamientoId);
+        }
+
+        bool transaccionPropia = !_unitOfWork.TransaccionActiva;
+
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+        Tratamiento? tratamiento = await _repositorioTratamiento.ObtenerPorIdConInsumosAsync(
+            tratamientoId,
+            cancellationToken);
+
+        if (tratamiento == null)
+        {
+            throw new TratamientoNoEncontradoException(tratamientoId);
+        }
+
+        List<Insumo> insumosAfectados = new List<Insumo>();
+        List<int> cantidades = new List<int>();
+
+        foreach (TratamientoInsumo detalle in tratamiento.InsumosRequeridos)
+        {
+            Insumo? insumo = await _repositorioInsumos.ObtenerInsumoPorId(detalle.InsumoId);
+
+            if (insumo == null)
+            {
+                throw new InsumoNoEncontradoException(detalle.InsumoId);
+            }
+
+            int disponible = insumo.StockDisponible();
+
+            if (disponible < detalle.CantidadUsada)
+            {
+                throw new StockInsuficienteException(
+                    detalle.InsumoId,
+                    detalle.CantidadUsada,
+                    disponible);
+            }
+
+            insumosAfectados.Add(insumo);
+            cantidades.Add(detalle.CantidadUsada);
+        }
+
+        for (int indice = 0; indice < insumosAfectados.Count; indice++)
+        {
+            insumosAfectados[indice].DescontarStock(cantidades[indice]);
+            await _repositorioInsumos.ActualizarInsumo(insumosAfectados[indice]);
+        }
+
+        if (transaccionPropia)
+        {
+            await _unitOfWork.CommitAsync(cancellationToken);
+        }
     }
 
     private static void ValidarDatosTratamiento(TratamientoDtoInput tratamiento)
@@ -200,26 +253,20 @@ public class TratamientoService : ITratamientoService
                 throw new InsumoNoEncontradoException(item.InsumoId);
             }
 
+            int stockDisponible = insumo.StockDisponible();
+
+            if (stockDisponible < item.CantidadUsada)
+            {
+                throw new StockInsuficienteException(
+                    item.InsumoId,
+                    item.CantidadUsada,
+                    stockDisponible);
+            }
+
             relaciones.Add(new TratamientoInsumo(tratamientoId, item.InsumoId, item.CantidadUsada));
         }
 
         return relaciones;
     }
 
-    private static TratamientoDtoOutput CrearDto(Tratamiento tratamiento)
-    {
-        List<InsumoRequeridoDtoOutput> listaInsumos = new List<InsumoRequeridoDtoOutput>();
-
-        foreach (TratamientoInsumo insumo in tratamiento.InsumosRequeridos)
-        {
-            listaInsumos.Add(new InsumoRequeridoDtoOutput(insumo.InsumoId, insumo.CantidadUsada));
-        }
-
-        return new TratamientoDtoOutput(
-            tratamiento.Id,
-            tratamiento.Descripcion,
-            tratamiento.Costo,
-            listaInsumos,
-            (int)tratamiento.DuracionEstimada.TotalMinutes);
-    }
 }

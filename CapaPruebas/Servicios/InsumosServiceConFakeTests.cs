@@ -60,6 +60,32 @@ public class InsumosServiceConFakeTests
     }
 
     [Fact]
+    public async Task ActualizarInsumoAsync_StockMinimoPersonalizado_NoSePierde()
+    {
+        // Arrange
+        FakeRepositorioInsumos repositorio = new FakeRepositorioInsumos();
+        InsumosService servicio = new InsumosService(repositorio, new UnitOfWorkNulo());
+
+        await repositorio.AgregarInsumo(
+            new Insumo(1, "Anestesia Lidocaina", CategoriaInsumo.Anestesia, 500, 0, 100, 50, 80, 300));
+
+        InsumoDtosInput insumoEditado = new InsumoDtosInput(
+            1,
+            "Anestesia Lidocaina",
+            CategoriaInsumo.Anestesia,
+            450);
+
+        // Act
+        await servicio.ActualizarInsumoAsync(1, insumoEditado);
+        Insumo? actualizado = await repositorio.ObtenerInsumoPorId(1);
+
+        // Assert
+        Assert.NotNull(actualizado);
+        Assert.Equal(450, actualizado!.Stock);
+        Assert.Equal(80, actualizado.StockMinimo);
+    }
+
+    [Fact]
     public async Task EliminarInsumoAsync_FlujoCompleto_EliminaElRegistro()
     {
         // Arrange

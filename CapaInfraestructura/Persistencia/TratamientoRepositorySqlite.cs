@@ -274,6 +274,82 @@ FROM Tratamientos;";
         return ObtenerTratamientoPorIdInternoAsync(id, cancellationToken);
     }
 
+    public async Task<Tratamiento?> ObtenerPorIdConInsumosAsync(int id, CancellationToken cancellationToken = default)
+    {
+        if (id < 0)
+            throw new ArgumentOutOfRangeException(nameof(id), "No puedes ingresar IDs negativos.");
+
+        const string sql = @"
+SELECT
+    t.Id,
+    t.Descripcion,
+    t.Costo,
+    t.DuracionEstimadaTicks AS DuracionEstimada,
+    ti.TratamientoId,
+    ti.InsumoId,
+    ti.CantidadUsada
+FROM Tratamientos t
+LEFT JOIN TratamientoInsumos ti ON ti.TratamientoId = t.Id
+WHERE t.Id = @Id
+ORDER BY ti.InsumoId;";
+
+        IEnumerable<Tratamiento> resultado = await _unitOfWork.Connection.QueryAsync<Tratamiento, TratamientoInsumo, Tratamiento>(
+            new CommandDefinition(
+                sql,
+                new { Id = id },
+                _unitOfWork.Transaction,
+                cancellationToken: cancellationToken),
+            MapearTratamientoConInsumos,
+            splitOn: "TratamientoId");
+
+        List<Tratamiento> filas = resultado.ToList();
+
+        if (filas.Count == 0)
+        {
+            return null;
+        }
+
+        Tratamiento tratamiento = filas[0];
+
+        for (int indice = 1; indice < filas.Count; indice++)
+        {
+            foreach (TratamientoInsumo insumo in filas[indice].InsumosRequeridos)
+            {
+                if (!ContieneInsumo(tratamiento, insumo.InsumoId))
+                {
+                    tratamiento.AgregarInsumo(
+                        new TratamientoInsumo(tratamiento.Id, insumo.InsumoId, insumo.CantidadUsada));
+                }
+            }
+        }
+
+        return tratamiento;
+    }
+
+    private static bool ContieneInsumo(Tratamiento tratamiento, int insumoId)
+    {
+        foreach (TratamientoInsumo insumo in tratamiento.InsumosRequeridos)
+        {
+            if (insumo.InsumoId == insumoId)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static Tratamiento MapearTratamientoConInsumos(Tratamiento tratamiento, TratamientoInsumo? insumo)
+    {
+        if (insumo is not null && insumo.InsumoId > 0)
+        {
+            tratamiento.AgregarInsumo(
+                new TratamientoInsumo(tratamiento.Id, insumo.InsumoId, insumo.CantidadUsada));
+        }
+
+        return tratamiento;
+    }
+
     private async Task<Tratamiento?> ObtenerTratamientoPorIdInternoAsync(int id, CancellationToken cancellationToken)
     {
         if (id < 0)

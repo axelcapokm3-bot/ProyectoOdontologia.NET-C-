@@ -3,6 +3,7 @@ namespace CapaAplicacion.Interfaces;
 using ProyectoOdontologia.CapaAplicacion.DtosInput;
 using ProyectoOdontologia.CapaAplicacion.DtosOutput;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 public interface ITratamientoService
@@ -13,4 +14,5 @@ public interface ITratamientoService
     Task RegistrarTratamientoAsync(TratamientoDtoInput nuevoTratamiento);
     Task ActualizarTratamientoAsync(int id, TratamientoDtoInput tratamientoEditado);
     Task<bool> EliminarTratamientoAsync(int id);
+    Task ConsumirInsumosAsync(int tratamientoId, CancellationToken cancellationToken = default);
 }

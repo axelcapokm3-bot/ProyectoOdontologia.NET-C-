@@ -1,0 +1,169 @@
+/* ============================================================
+   OdontoCare — Design tokens compartidos
+   Sistema visual único para Login y Panel clínico.
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  --font-display: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+  /* Tinta */
+  --ink-900: #092330;
+  --ink-800: #123543;
+  --ink-700: #294654;
+  --ink-600: #45606d;
+  --ink-500: #5d7380;
+  --ink-400: #8197a1;
+  --ink-300: #b4c5cd;
+
+  /* Marca clínica */
+  --brand-950: #03232c;
+  --brand-900: #043440;
+  --brand-800: #05495a;
+  --brand-700: #075e72;
+  --brand-600: #097388;
+  --brand-500: #0f8fa5;
+  --brand-400: #35b6c8;
+  --brand-300: #7adbe4;
+  --brand-200: #b4edf2;
+  --brand-100: #dcf7fa;
+  --brand-50: #f0fbfd;
+
+  /* Acentos */
+  --mint-600: #0d9480;
+  --mint-500: #17b7a2;
+  --mint-400: #4ad3be;
+  --mint-100: #ddf8f2;
+
+  --danger-600: #b73c4b;
+  --danger-500: #d4535f;
+  --danger-100: #fdecef;
+
+  --warning-600: #a86a12;
+  --warning-500: #d9971f;
+  --warning-100: #fdf4e1;
+
+  --success-600: #157d5c;
+  --success-500: #22a377;
+  --success-100: #e2f7ef;
+
+  --violet-600: #5852b8;
+  --violet-100: #eeedfd;
+
+  /* Superficies */
+  --surface-0: #ffffff;
+  --surface-1: #f7fbfc;
+  --surface-2: #eff6f8;
+  --surface-3: #e5eff2;
+  --stroke: #dfeaee;
+  --stroke-strong: #c8dbe1;
+
+  /* Radios */
+  --radius-xs: 8px;
+  --radius-sm: 11px;
+  --radius-md: 15px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-2xl: 36px;
+  --radius-pill: 999px;
+
+  /* Profundidad */
+  --shadow-xs: 0 1px 2px rgba(6, 38, 49, 0.06);
+  --shadow-sm: 0 2px 6px -2px rgba(6, 38, 49, 0.1), 0 10px 24px -18px rgba(6, 38, 49, 0.25);
+  --shadow-md: 0 18px 40px -28px rgba(6, 38, 49, 0.38), 0 4px 12px -8px rgba(6, 38, 49, 0.12);
+  --shadow-lg: 0 44px 90px -48px rgba(3, 35, 44, 0.55);
+  --shadow-glow: 0 20px 50px -24px rgba(15, 143, 165, 0.55);
+  --ring: 0 0 0 4px rgba(15, 143, 165, 0.16);
+
+  /* Movimiento */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 140ms;
+  --dur: 220ms;
+  --dur-slow: 460ms;
+
+  /* Layout */
+  --sidebar-w: 278px;
+  --content-max: 1440px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(15, 143, 165, 0.22);
+  color: var(--ink-900);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 3px;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24;
+  user-select: none;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--stroke-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--stroke-strong);
+  border: 3px solid transparent;
+  border-radius: var(--radius-pill);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-300);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

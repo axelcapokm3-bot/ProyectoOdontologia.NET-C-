@@ -1,6 +1,7 @@
 namespace ProyectoOdontologia.CapaAplicacion.ServiciosAplicacion;
 
 using global::CapaAplicacion.Interfaces;
+using global::CapaAplicacion.Mappers;
 using global::ProyectoOdontologia.CapaAplicacion.DtosInput;
 using global::ProyectoOdontologia.CapaAplicacion.DtosOutput;
 using global::CapaDominio.Entidades;
@@ -35,15 +36,14 @@ public class PacienteService : IPacienteService
             throw new ArgumentException("El nombre del paciente contiene caracteres no válidos o está vacío.");
         }
 
+        if (!string.IsNullOrWhiteSpace(paciente.Password) && paciente.Password.Length < 8)
+        {
+            throw new ArgumentException("La contraseña debe tener al menos 8 caracteres.");
+        }
+
         await _unitOfWork.BeginTransactionAsync();
 
         int idPaciente = _repositorioPaciente.IdAutoIncrementoSincrono();
-        int? usuarioId = paciente.UsuarioId;
-
-        if (usuarioId is null && !string.IsNullOrWhiteSpace(paciente.NombreUsuario) && !string.IsNullOrWhiteSpace(paciente.Password))
-        {
-            usuarioId = await CrearUsuarioPacienteAsync(paciente.NombreUsuario, paciente.Email, paciente.Password);
-        }
 
         Paciente nuevoPaciente = new Paciente(
             idPaciente,
@@ -52,7 +52,7 @@ public class PacienteService : IPacienteService
             paciente.FechaNacimiento,
             paciente.Telefono,
             paciente.Email,
-            usuarioId);
+            paciente.UsuarioId);
 
         if (!await ValidadorDeEmail(nuevoPaciente))
         {
@@ -66,6 +66,22 @@ public class PacienteService : IPacienteService
 
         await _repositorioPaciente.AgregarPaciente(nuevoPaciente);
         await _unitOfWork.CommitAsync();
+
+        if (paciente.UsuarioId is null && !string.IsNullOrWhiteSpace(paciente.NombreUsuario) && !string.IsNullOrWhiteSpace(paciente.Password))
+        {
+            int usuarioId = await CrearUsuarioPacienteAsync(paciente.NombreUsuario, paciente.Email, paciente.Password);
+
+            Paciente vinculado = new Paciente(
+                idPaciente,
+                paciente.Nombre,
+                paciente.Apellido,
+                paciente.FechaNacimiento,
+                paciente.Telefono,
+                paciente.Email,
+                usuarioId);
+
+            await _repositorioPaciente.ActualizarPaciente(vinculado);
+        }
     }
 
     public bool ValidadorNombre(PacienteDtoInput paciente)
@@ -125,27 +141,20 @@ public class PacienteService : IPacienteService
     public async Task<IEnumerable<PacienteDtoOutput>> ObtenerTodosLosPacientesAsync()
     {
         IEnumerable<Paciente> pacientes = await _repositorioPaciente.ObtenerTodos();
-        List<PacienteDtoOutput> resultado = new List<PacienteDtoOutput>();
+        List<Paciente> listaPacientes = new List<Paciente>();
 
         foreach (Paciente paciente in pacientes)
         {
-            resultado.Add(CrearDto(paciente));
+            listaPacientes.Add(paciente);
         }
 
-        return resultado;
+        return PacienteMapper.MapMany(listaPacientes);
     }
 
     public async Task<List<PacienteDtoOutput>> BuscarPacientesAsync(string criterio)
     {
         List<Paciente> pacientes = await _repositorioPaciente.BuscarPacientes(criterio);
-        List<PacienteDtoOutput> resultado = new List<PacienteDtoOutput>();
-
-        foreach (Paciente paciente in pacientes)
-        {
-            resultado.Add(CrearDto(paciente));
-        }
-
-        return resultado;
+        return PacienteMapper.MapMany(pacientes);
     }
 
     public async Task<PacienteDtoOutput> ObtenerPacientePorIdAsync(int id)
@@ -157,7 +166,7 @@ public class PacienteService : IPacienteService
             throw new PacienteNoEncontradoException(id);
         }
 
-        return CrearDto(paciente);
+        return PacienteMapper.Map(paciente);
     }
 
     public async Task ActualizarPacienteAsync(int id, PacienteDtoInput pacienteEditado)
@@ -246,14 +255,4 @@ public class PacienteService : IPacienteService
         return usuario.Id;
     }
 
-    private static PacienteDtoOutput CrearDto(Paciente paciente)
-    {
-        return new PacienteDtoOutput(
-            paciente.Id,
-            paciente.Nombre,
-            paciente.Apellido,
-            paciente.Email,
-            paciente.FechaNacimiento,
-            paciente.Telefono);
-    }
 }

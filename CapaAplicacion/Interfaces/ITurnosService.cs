@@ -20,4 +20,6 @@ public interface ITurnosService
     Task<List<IntervaloTiempoDto>> ConsultarHuecosDisponiblesAsync(ConsultarHuecosRequestDto request, CancellationToken cancellationToken = default);
 
     Task CancelarTurnoAsync(int id, CancellationToken cancellationToken = default);
+
+    Task CompletarTurnoAsync(int id, CancellationToken cancellationToken = default);
 }

@@ -38,6 +38,7 @@ public class RepositorioInsumos : IRepositorioInsumos
 
         if (string.IsNullOrWhiteSpace(consulta))
         {
+            
             foreach (Insumo i in _insumos.Values)
             {
                 resultados.Add(i);

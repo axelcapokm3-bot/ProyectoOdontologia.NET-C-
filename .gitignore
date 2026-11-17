@@ -510,3 +510,5 @@ TestResults/
 # Scratch local de especificaciones (no borradores)
 spec/**/_scratch/
 memory/_local/
+# Repositorio externo clonado localmente
+DeepTutor/

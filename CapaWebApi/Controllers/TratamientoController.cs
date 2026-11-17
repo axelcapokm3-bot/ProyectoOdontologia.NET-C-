@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using CapaAplicacion.Interfaces;
 using ProyectoOdontologia.CapaAplicacion.DtosInput;
 using ProyectoOdontologia.CapaAplicacion.DtosOutput;
@@ -7,6 +8,7 @@ namespace CapaWebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles = "Admin,Odontologo,Recepcionista")]
     public class TratamientoController : ControllerBase
     {
         private readonly ITratamientoService _tratamientoService;
@@ -38,6 +40,7 @@ namespace CapaWebApi.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Guardar([FromBody] TratamientoDtoInput tratamiento)
         {
             if (tratamiento == null) return BadRequest();
@@ -47,6 +50,7 @@ namespace CapaWebApi.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] TratamientoDtoInput tratamiento)
         {
             if (tratamiento == null) return BadRequest();
@@ -56,6 +60,7 @@ namespace CapaWebApi.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Eliminar(int id)
         {
             var eliminado = await _tratamientoService.EliminarTratamientoAsync(id);

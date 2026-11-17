@@ -4,6 +4,7 @@ public record InsumoDtosOutput(
     int Id,
     string Nombre,
     int Stock,
-    int StockReserva,
-    int PuntoPedido
+    int StockReservado,
+    int PuntoPedido,
+    int StockMinimo
 );

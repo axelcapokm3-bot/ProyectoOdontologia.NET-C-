@@ -136,6 +136,53 @@ public class ExceptionHandlingMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_TurnoNoModificable_Responde409()
+    {
+        // Act
+        ResultadoMiddleware resultado = await EjecutarAsync(
+            new TurnoNoModificableException("Solo se pueden modificar turnos en estado Pendiente."));
+
+        // Assert
+        Assert.Equal(StatusCodes.Status409Conflict, resultado.Contexto.Response.StatusCode);
+        Assert.Equal("application/problem+json", resultado.Contexto.Response.ContentType);
+        Assert.NotNull(resultado.Problema);
+        Assert.Equal(StatusCodes.Status409Conflict, resultado.Problema!.Status);
+        Assert.Equal("Turno no modificable", resultado.Problema.Title);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_UnauthorizedAccess_Responde401()
+    {
+        // Act
+        ResultadoMiddleware resultado = await EjecutarAsync(
+            new UnauthorizedAccessException("Credenciales inválidas."));
+
+        // Assert
+        Assert.Equal(StatusCodes.Status401Unauthorized, resultado.Contexto.Response.StatusCode);
+        Assert.Equal("application/problem+json", resultado.Contexto.Response.ContentType);
+        Assert.NotNull(resultado.Problema);
+        Assert.Equal(StatusCodes.Status401Unauthorized, resultado.Problema!.Status);
+        Assert.Equal("No autorizado", resultado.Problema.Title);
+        Assert.Contains("Credenciales", resultado.Problema.Detail);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_KeyNotFound_Responde404()
+    {
+        // Act
+        ResultadoMiddleware resultado = await EjecutarAsync(
+            new KeyNotFoundException("No se encontró un turno con el ID 99."));
+
+        // Assert
+        Assert.Equal(StatusCodes.Status404NotFound, resultado.Contexto.Response.StatusCode);
+        Assert.Equal("application/problem+json", resultado.Contexto.Response.ContentType);
+        Assert.NotNull(resultado.Problema);
+        Assert.Equal(StatusCodes.Status404NotFound, resultado.Problema!.Status);
+        Assert.Equal("Recurso no encontrado", resultado.Problema.Title);
+        Assert.Contains("99", resultado.Problema.Detail);
+    }
+
+    [Fact]
     public async Task InvokeAsync_ExcepcionNoControlada_Responde500SinExponerElDetalle()
     {
         // Act

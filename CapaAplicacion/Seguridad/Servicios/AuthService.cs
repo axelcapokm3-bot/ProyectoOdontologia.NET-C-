@@ -52,6 +52,11 @@ public class AuthService : IAuthService
         throw new UnauthorizedAccessException("Credenciales inválidas.");
     }
 
+    if (!usuario.EstaActivo)
+    {
+        throw new UnauthorizedAccessException("La cuenta de usuario se encuentra desactivada.");
+    }
+
     return await GenerarRespuestaAuthAsync(usuario);
 }
     public async Task<AuthResponseDto> RefreshAsync(RefreshTokenRequestDto request)
@@ -64,6 +69,9 @@ public class AuthService : IAuthService
 
         var usuario = await _repositorioUsuario.ObtenerPorIdAsync(refreshToken.UsuarioId)
             ?? throw new UnauthorizedAccessException("Usuario no encontrado.");
+
+        if (!usuario.EstaActivo)
+            throw new UnauthorizedAccessException("La cuenta de usuario se encuentra desactivada.");
 
         refreshToken.MarcarComoUsado();
         await _repositorioUsuario.RevocarRefreshTokenAsync(request.RefreshToken);

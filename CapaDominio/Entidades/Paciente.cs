@@ -19,7 +19,7 @@ public class Paciente
         if (string.IsNullOrWhiteSpace(apellido)) throw new ArgumentException("El apellido no puede estar vacío.", nameof(apellido));
         if (fechaNacimiento > DateTime.Now) throw new ArgumentException("La fecha de nacimiento no puede ser futura.", nameof(fechaNacimiento));
         
-        DateTime fechaLimiteMaxima = new DateTime(2007, 12, 31);
+        DateTime fechaLimiteMaxima = DateTime.Today;
         DateTime fechaLimiteMinima = new DateTime(1920, 1, 1);
 
         if (fechaNacimiento > fechaLimiteMaxima || fechaNacimiento < fechaLimiteMinima)

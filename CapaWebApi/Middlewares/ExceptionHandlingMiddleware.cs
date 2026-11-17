@@ -71,6 +71,11 @@ public sealed class ExceptionHandlingMiddleware
                     title = "Stock insuficiente";
                     break;
 
+                case TurnoNoModificableException:
+                    statusCode = StatusCodes.Status409Conflict;
+                    title = "Turno no modificable";
+                    break;
+
                 default:
                     statusCode = StatusCodes.Status400BadRequest;
                     title = "Regla de negocio incumplida";
@@ -78,6 +83,24 @@ public sealed class ExceptionHandlingMiddleware
             }
 
             await EscribirProblemDetailsAsync(context, statusCode, title, ex.Message);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Acceso no autorizado.");
+            await EscribirProblemDetailsAsync(
+                context,
+                StatusCodes.Status401Unauthorized,
+                "No autorizado",
+                ex.Message);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Recurso no encontrado.");
+            await EscribirProblemDetailsAsync(
+                context,
+                StatusCodes.Status404NotFound,
+                "Recurso no encontrado",
+                ex.Message);
         }
         catch (ArgumentException ex)
         {

@@ -1,6 +1,7 @@
 namespace ProyectoOdontologia.CapaAplicacion.ServiciosAplicacion;
 
 using global::CapaAplicacion.Interfaces;
+using global::CapaAplicacion.Mappers;
 using global::ProyectoOdontologia.CapaAplicacion.DtosInput;
 using global::ProyectoOdontologia.CapaAplicacion.DtosOutput;
 using CapaDominio.Entidades;
@@ -44,14 +45,14 @@ public class InsumosService : IInsumosService
     public async Task<IEnumerable<InsumoDtosOutput>> ObtenerTodosLosInsumosAsync()
     {
         IEnumerable<Insumo> insumos = await _repositorioInsumos.ObtenerTodos();
-        List<InsumoDtosOutput> resultado = new List<InsumoDtosOutput>();
+        List<Insumo> listaInsumos = new List<Insumo>();
 
         foreach (Insumo insumo in insumos)
         {
-            resultado.Add(CrearDto(insumo));
+            listaInsumos.Add(insumo);
         }
 
-        return resultado;
+        return InsumoMapper.MapMany(listaInsumos);
     }
 
     public async Task<InsumoDtosOutput> ObtenerInsumoPorIdAsync(int id)
@@ -63,20 +64,13 @@ public class InsumosService : IInsumosService
             throw new InsumoNoEncontradoException(id);
         }
 
-        return CrearDto(insumo);
+        return InsumoMapper.Map(insumo);
     }
 
     public async Task<List<InsumoDtosOutput>> BuscarInsumosAsync(string criterio)
     {
         List<Insumo> insumos = await _repositorioInsumos.BuscarInsumos(criterio);
-        List<InsumoDtosOutput> resultado = new List<InsumoDtosOutput>();
-
-        foreach (Insumo insumo in insumos)
-        {
-            resultado.Add(CrearDto(insumo));
-        }
-
-        return resultado;
+        return InsumoMapper.MapMany(insumos);
     }
 
     public async Task ActualizarInsumoAsync(int id, InsumoDtosInput insumoEditado)
@@ -146,13 +140,4 @@ public class InsumosService : IInsumosService
         return true;
     }
 
-    private static InsumoDtosOutput CrearDto(Insumo insumo)
-    {
-        return new InsumoDtosOutput(
-            insumo.Id,
-            insumo.Nombre,
-            insumo.Stock,
-            insumo.StockReservado,
-            insumo.PuntoPedido);
-    }
 }

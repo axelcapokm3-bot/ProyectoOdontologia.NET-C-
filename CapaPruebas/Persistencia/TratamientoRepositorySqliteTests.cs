@@ -182,4 +182,62 @@ public class TratamientoRepositorySqliteTests
         Assert.Single(porDescripcion);
         Assert.Equal(1, porDescripcion[0].Id);
     }
+
+    [Fact]
+    public async Task ObtenerPorIdConInsumosAsync_RetornaTratamientoConSuRecetaCompleta()
+    {
+        // Arrange
+        await using SqliteTestDatabase baseDeDatos = new();
+        await baseDeDatos.InicializarAsync();
+        await using UnitOfWorkSqlite unitOfWork = baseDeDatos.CrearUnitOfWork();
+        TratamientoRepositorySqlite repositorio = new TratamientoRepositorySqlite(unitOfWork);
+        InsumoRepositorySqlite insumosRepositorio = new InsumoRepositorySqlite(unitOfWork);
+
+        await CrearInsumoAsync(insumosRepositorio, 10);
+        await CrearInsumoAsync(insumosRepositorio, 20);
+
+        await repositorio.AgregarTratamiento(
+            new Tratamiento(
+                1,
+                "Endodoncia",
+                8000.50m,
+                new List<TratamientoInsumo>
+                {
+                    new TratamientoInsumo(0, 10, 3),
+                    new TratamientoInsumo(0, 20, 5)
+                },
+                TimeSpan.FromMinutes(75)));
+
+        // Act
+        Tratamiento? recuperado = await repositorio.ObtenerPorIdConInsumosAsync(1);
+
+        // Assert
+        Assert.NotNull(recuperado);
+        Assert.Equal("Endodoncia", recuperado!.Descripcion);
+        Assert.Equal(8000.50m, recuperado.Costo);
+        Assert.Equal(TimeSpan.FromMinutes(75), recuperado.DuracionEstimada);
+        Assert.Equal(2, recuperado.InsumosRequeridos.Count);
+        Assert.Contains(recuperado.InsumosRequeridos, i => i.InsumoId == 10 && i.CantidadUsada == 3);
+        Assert.Contains(recuperado.InsumosRequeridos, i => i.InsumoId == 20 && i.CantidadUsada == 5);
+    }
+
+    [Fact]
+    public async Task ObtenerPorIdConInsumosAsync_SinReceta_RetornaTratamientoSinInsumos()
+    {
+        // Arrange
+        await using SqliteTestDatabase baseDeDatos = new();
+        await baseDeDatos.InicializarAsync();
+        await using UnitOfWorkSqlite unitOfWork = baseDeDatos.CrearUnitOfWork();
+        TratamientoRepositorySqlite repositorio = new TratamientoRepositorySqlite(unitOfWork);
+
+        await repositorio.AgregarTratamiento(
+            new Tratamiento(1, "Consulta", 3000m, new List<TratamientoInsumo>()));
+
+        // Act
+        Tratamiento? recuperado = await repositorio.ObtenerPorIdConInsumosAsync(1);
+
+        // Assert
+        Assert.NotNull(recuperado);
+        Assert.Empty(recuperado!.InsumosRequeridos);
+    }
 }

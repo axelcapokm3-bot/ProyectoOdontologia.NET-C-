@@ -1,5 +1,6 @@
 namespace CapaDominio.Entidades;
 
+using CapaDominio.Excepciones;
 using CapaDominio.ObjetosDeValor;
 using System;
 using System.Collections.Generic;
@@ -62,8 +63,8 @@ public class Turno
 
     public void Reprogramar(DateTime inicio, DateTime fin)
     {
-        if (Estado == EstadoTurno.Cancelado || Estado == EstadoTurno.Completado)
-            throw new InvalidOperationException("No se puede reprogramar un turno finalizado.");
+        if (Estado != EstadoTurno.Pendiente)
+            throw new TurnoNoModificableException("Solo se pueden modificar turnos en estado Pendiente.");
         if (fin <= inicio) throw new ArgumentOutOfRangeException(nameof(fin), "La fecha de fin debe ser posterior a la de inicio.");
 
         FechaHoraInicio = inicio;

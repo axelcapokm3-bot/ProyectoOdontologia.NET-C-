@@ -37,9 +37,78 @@ public class InsumoRepositorySqliteTests
         Assert.Equal(insumo.Categoria, recuperado.Categoria);
         Assert.Equal(insumo.Stock, recuperado.Stock);
         Assert.Equal(insumo.StockReservado, recuperado.StockReservado);
+        Assert.Equal(insumo.StockMinimo, recuperado.StockMinimo);
         Assert.Equal(insumo.PuntoPedido, recuperado.PuntoPedido);
         Assert.Equal(insumo.StockSeguridad, recuperado.StockSeguridad);
         Assert.Equal(insumo.StockMaximo, recuperado.StockMaximo);
+    }
+
+    [Fact]
+    public async Task AgregarInsumo_PersisteStockMinimoIndependienteDelPuntoPedido()
+    {
+        // Arrange
+        await using SqliteTestDatabase baseDeDatos = new();
+        await baseDeDatos.InicializarAsync();
+        await using UnitOfWorkSqlite unitOfWork = baseDeDatos.CrearUnitOfWork();
+        InsumoRepositorySqlite repositorio = new InsumoRepositorySqlite(unitOfWork);
+
+        Insumo insumo = new Insumo(
+            2,
+            "Algodon",
+            CategoriaInsumo.Descartable,
+            300,
+            10,
+            100,
+            50,
+            80,
+            300);
+
+        // Act
+        await repositorio.AgregarInsumo(insumo);
+        Insumo? recuperado = await repositorio.ObtenerInsumoPorId(2);
+
+        // Assert
+        Assert.NotNull(recuperado);
+        Assert.Equal(80, recuperado!.StockMinimo);
+        Assert.Equal(100, recuperado.PuntoPedido);
+        Assert.False(recuperado.RequiereReabastecimiento());
+    }
+
+    [Fact]
+    public async Task InicializarAsync_EsquemaAnteriorSinStockMinimo_AgregaLaColumnaYCompletaValores()
+    {
+        // Arrange
+        await using SqliteTestDatabase baseDeDatos = new();
+        await using (UnitOfWorkSqlite preparacion = baseDeDatos.CrearUnitOfWork())
+        {
+            const string esquemaAnterior = @"
+CREATE TABLE Insumos (
+    Id INTEGER PRIMARY KEY,
+    Nombre TEXT NOT NULL,
+    Categoria INTEGER NOT NULL,
+    Stock INTEGER NOT NULL,
+    StockReservado INTEGER NOT NULL,
+    PuntoPedido INTEGER NOT NULL,
+    StockSeguridad INTEGER NOT NULL,
+    StockMaximo INTEGER NOT NULL
+);
+INSERT INTO Insumos (Id, Nombre, Categoria, Stock, StockReservado, PuntoPedido, StockSeguridad, StockMaximo)
+VALUES (1, 'Anestesia Lidocaina', 2, 500, 0, 100, 50, 300);";
+
+            await preparacion.Connection.ExecuteAsync(esquemaAnterior);
+        }
+
+        await baseDeDatos.InicializarAsync();
+
+        // Act
+        await using UnitOfWorkSqlite unitOfWork = baseDeDatos.CrearUnitOfWork();
+        InsumoRepositorySqlite repositorio = new InsumoRepositorySqlite(unitOfWork);
+        Insumo? recuperado = await repositorio.ObtenerInsumoPorId(1);
+
+        // Assert
+        Assert.NotNull(recuperado);
+        Assert.Equal(100, recuperado!.StockMinimo);
+        Assert.Equal(100, recuperado.PuntoPedido);
     }
 
     [Fact]

@@ -12,6 +12,7 @@ public class Insumo
     public CategoriaInsumo Categoria { get; private set; }
     public int Stock { get; private set; }
     public int StockReservado { get; private set; }
+    public int StockMinimo { get; private set; }
     public int PuntoPedido { get; private set; }
     public int StockSeguridad { get; private set; }
     public int StockMaximo { get; private set; }
@@ -40,6 +41,7 @@ public class Insumo
         StockReservado = 0;
         StockSeguridad = CalculoStockSeguridad(categoria);
         PuntoPedido = StockSeguridad * 2;
+        StockMinimo = PuntoPedido;
         StockMaximo = PuntoPedido * 3;
     }
 
@@ -51,6 +53,20 @@ public class Insumo
         int stockReservado,
         int puntoPedido,
         int stockSeguridad,
+        int stockMaximo)
+        : this(id, nombre, categoria, stock, stockReservado, puntoPedido, stockSeguridad, puntoPedido, stockMaximo)
+    {
+    }
+
+    public Insumo(
+        int id,
+        string nombre,
+        CategoriaInsumo categoria,
+        int stock,
+        int stockReservado,
+        int puntoPedido,
+        int stockSeguridad,
+        int stockMinimo,
         int stockMaximo)
     {
         ValidarDatosBase(id, nombre, stock);
@@ -65,6 +81,11 @@ public class Insumo
             throw new ArgumentException("El stock de seguridad no puede ser negativo.", nameof(stockSeguridad));
         }
 
+        if (stockMinimo < 0)
+        {
+            throw new ArgumentException("El stock mínimo no puede ser negativo.", nameof(stockMinimo));
+        }
+
         if (puntoPedido < stockSeguridad)
         {
             throw new ArgumentException("El punto de pedido no puede ser menor al stock de seguridad.", nameof(puntoPedido));
@@ -73,6 +94,11 @@ public class Insumo
         if (stockMaximo < puntoPedido)
         {
             throw new ArgumentException("El stock máximo no puede ser menor al punto de pedido.", nameof(stockMaximo));
+        }
+
+        if (stockMinimo > stockMaximo)
+        {
+            throw new ArgumentException("El stock mínimo no puede superar el stock máximo.", nameof(stockMinimo));
         }
 
         if (stockReservado > stock)
@@ -87,6 +113,7 @@ public class Insumo
         StockReservado = stockReservado;
         PuntoPedido = puntoPedido;
         StockSeguridad = stockSeguridad;
+        StockMinimo = stockMinimo;
         StockMaximo = stockMaximo;
     }
 
@@ -95,6 +122,16 @@ public class Insumo
         CategoriaInsumo categoria,
         int stock,
         int stockReservado)
+    {
+        Actualizar(nombre, categoria, stock, stockReservado, StockMinimo);
+    }
+
+    public void Actualizar(
+        string nombre,
+        CategoriaInsumo categoria,
+        int stock,
+        int stockReservado,
+        int stockMinimo)
     {
         if (string.IsNullOrWhiteSpace(nombre))
         {
@@ -116,13 +153,28 @@ public class Insumo
             throw new ArgumentException("El stock reservado no puede superar el stock total.", nameof(stockReservado));
         }
 
+        if (stockMinimo < 0)
+        {
+            throw new ArgumentException("El stock mínimo no puede ser negativo.", nameof(stockMinimo));
+        }
+
+        int stockSeguridad = CalculoStockSeguridad(categoria);
+        int puntoPedido = stockSeguridad * 2;
+        int stockMaximo = puntoPedido * 3;
+
+        if (stockMinimo > stockMaximo)
+        {
+            throw new ArgumentException("El stock mínimo no puede superar el stock máximo.", nameof(stockMinimo));
+        }
+
         Nombre = nombre;
         Categoria = categoria;
         Stock = stock;
         StockReservado = stockReservado;
-        StockSeguridad = CalculoStockSeguridad(categoria);
-        PuntoPedido = StockSeguridad * 2;
-        StockMaximo = PuntoPedido * 3;
+        StockSeguridad = stockSeguridad;
+        PuntoPedido = puntoPedido;
+        StockMinimo = stockMinimo;
+        StockMaximo = stockMaximo;
     }
 
     public int StockDisponible()
@@ -187,6 +239,11 @@ public class Insumo
     {
         NivelCriticidad estado = ObtenerEstadoStock();
         return estado == NivelCriticidad.Critico || estado == NivelCriticidad.Medio;
+    }
+
+    public bool RequiereReabastecimiento()
+    {
+        return StockDisponible() <= StockMinimo;
     }
 
     public int SugerirCantidadAReponer()
