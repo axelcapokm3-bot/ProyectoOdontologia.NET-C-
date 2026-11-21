@@ -43,44 +43,53 @@ public class PacienteService : IPacienteService
 
         await _unitOfWork.BeginTransactionAsync();
 
-        int idPaciente = _repositorioPaciente.IdAutoIncrementoSincrono();
-
-        Paciente nuevoPaciente = new Paciente(
-            idPaciente,
-            paciente.Nombre,
-            paciente.Apellido,
-            paciente.FechaNacimiento,
-            paciente.Telefono,
-            paciente.Email,
-            paciente.UsuarioId);
-
-        if (!await ValidadorDeEmail(nuevoPaciente))
+        try
         {
-            throw new InvalidOperationException($"El correo electrónico '{paciente.Email}' ya está registrado.");
-        }
+            int idPaciente = _repositorioPaciente.IdAutoIncrementoSincrono();
 
-        if (!await ValidarTelefono(nuevoPaciente))
-        {
-            throw new InvalidOperationException($"El teléfono '{paciente.Telefono}' ya está registrado por otro paciente.");
-        }
-
-        await _repositorioPaciente.AgregarPaciente(nuevoPaciente);
-        await _unitOfWork.CommitAsync();
-
-        if (paciente.UsuarioId is null && !string.IsNullOrWhiteSpace(paciente.NombreUsuario) && !string.IsNullOrWhiteSpace(paciente.Password))
-        {
-            int usuarioId = await CrearUsuarioPacienteAsync(paciente.NombreUsuario, paciente.Email, paciente.Password);
-
-            Paciente vinculado = new Paciente(
+            Paciente nuevoPaciente = new Paciente(
                 idPaciente,
                 paciente.Nombre,
                 paciente.Apellido,
                 paciente.FechaNacimiento,
                 paciente.Telefono,
                 paciente.Email,
-                usuarioId);
+                paciente.UsuarioId);
 
-            await _repositorioPaciente.ActualizarPaciente(vinculado);
+            if (!await ValidadorDeEmail(nuevoPaciente))
+            {
+                throw new InvalidOperationException($"El correo electrónico '{paciente.Email}' ya está registrado.");
+            }
+
+            if (!await ValidarTelefono(nuevoPaciente))
+            {
+                throw new InvalidOperationException($"El teléfono '{paciente.Telefono}' ya está registrado por otro paciente.");
+            }
+
+            await _repositorioPaciente.AgregarPaciente(nuevoPaciente);
+
+            if (paciente.UsuarioId is null && !string.IsNullOrWhiteSpace(paciente.NombreUsuario) && !string.IsNullOrWhiteSpace(paciente.Password))
+            {
+                int usuarioId = await CrearUsuarioPacienteAsync(paciente.NombreUsuario, paciente.Email, paciente.Password);
+
+                Paciente vinculado = new Paciente(
+                    idPaciente,
+                    paciente.Nombre,
+                    paciente.Apellido,
+                    paciente.FechaNacimiento,
+                    paciente.Telefono,
+                    paciente.Email,
+                    usuarioId);
+
+                await _repositorioPaciente.ActualizarPaciente(vinculado);
+            }
+
+            await _unitOfWork.CommitAsync();
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
         }
     }
 
@@ -173,57 +182,73 @@ public class PacienteService : IPacienteService
     {
         await _unitOfWork.BeginTransactionAsync();
 
-        Paciente pacienteModificado = new Paciente(
-            id,
-            pacienteEditado.Nombre,
-            pacienteEditado.Apellido,
-            pacienteEditado.FechaNacimiento,
-            pacienteEditado.Telefono,
-            pacienteEditado.Email,
-            pacienteEditado.UsuarioId);
-
-        if (!await ValidadorDeEmail(pacienteModificado))
+        try
         {
-            throw new InvalidOperationException($"El correo electrónico '{pacienteEditado.Email}' ya está registrado.");
-        }
+            Paciente pacienteModificado = new Paciente(
+                id,
+                pacienteEditado.Nombre,
+                pacienteEditado.Apellido,
+                pacienteEditado.FechaNacimiento,
+                pacienteEditado.Telefono,
+                pacienteEditado.Email,
+                pacienteEditado.UsuarioId);
 
-        if (!await ValidarTelefono(pacienteModificado))
+            if (!await ValidadorDeEmail(pacienteModificado))
+            {
+                throw new InvalidOperationException($"El correo electrónico '{pacienteEditado.Email}' ya está registrado.");
+            }
+
+            if (!await ValidarTelefono(pacienteModificado))
+            {
+                throw new InvalidOperationException($"El teléfono '{pacienteEditado.Telefono}' ya está registrado por otro paciente.");
+            }
+
+            Paciente? existente = await _repositorioPaciente.ObtenerPacientePorId(id);
+
+            if (existente == null)
+            {
+                throw new PacienteNoEncontradoException(id);
+            }
+
+            await _repositorioPaciente.ActualizarPaciente(pacienteModificado);
+            await _unitOfWork.CommitAsync();
+        }
+        catch
         {
-            throw new InvalidOperationException($"El teléfono '{pacienteEditado.Telefono}' ya está registrado por otro paciente.");
+            await _unitOfWork.RollbackAsync();
+            throw;
         }
-
-        Paciente? existente = await _repositorioPaciente.ObtenerPacientePorId(id);
-
-        if (existente == null)
-        {
-            throw new PacienteNoEncontradoException(id);
-        }
-
-        await _repositorioPaciente.ActualizarPaciente(pacienteModificado);
-        await _unitOfWork.CommitAsync();
     }
 
     public async Task<bool> EliminarPacienteAsync(int id)
     {
         await _unitOfWork.BeginTransactionAsync();
 
-        Paciente? existente = await _repositorioPaciente.ObtenerPacientePorId(id);
-
-        if (existente == null)
+        try
         {
-            throw new PacienteNoEncontradoException(id);
+            Paciente? existente = await _repositorioPaciente.ObtenerPacientePorId(id);
+
+            if (existente == null)
+            {
+                throw new PacienteNoEncontradoException(id);
+            }
+
+            bool eliminado = await _repositorioPaciente.EliminarPaciente(id);
+
+            if (!eliminado)
+            {
+                throw new PacienteNoEncontradoException(id);
+            }
+
+            await _unitOfWork.CommitAsync();
+
+            return true;
         }
-
-        bool eliminado = await _repositorioPaciente.EliminarPaciente(id);
-
-        if (!eliminado)
+        catch
         {
-            throw new PacienteNoEncontradoException(id);
+            await _unitOfWork.RollbackAsync();
+            throw;
         }
-
-        await _unitOfWork.CommitAsync();
-
-        return true;
     }
 
     private async Task<int> CrearUsuarioPacienteAsync(string nombreUsuario, string email, string password)

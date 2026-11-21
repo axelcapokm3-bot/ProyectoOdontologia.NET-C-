@@ -52,6 +52,9 @@ public class TurnosServiceTests
         _mockOdontologos
             .Setup(r => r.ObtenerOdontologoPorId(It.IsAny<int>()))
             .ReturnsAsync(EntidadesFactory.CrearOdontologo(id: 1));
+        _mockTratamientos
+            .Setup(r => r.ObtenerTratamientoPorId(It.IsAny<int>()))
+            .ReturnsAsync(new Tratamiento(1, "Consulta", 1000m, new List<TratamientoInsumo>(), TimeSpan.FromMinutes(60)));
         _servicio = new TurnosService(
             _mockRepositorio.Object,
             _mockTratamientos.Object,

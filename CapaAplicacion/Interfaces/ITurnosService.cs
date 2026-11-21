@@ -17,9 +17,15 @@ public interface ITurnosService
 
     Task<int> RegistrarTurnoAsync(CrearTurnoRequestDto nuevoTurno, CancellationToken cancellationToken = default);
 
+    Task<int> RegistrarTurnoParaPacienteAsync(CrearTurnoRequestDto nuevoTurno, int usuarioId, CancellationToken cancellationToken = default);
+
     Task<List<IntervaloTiempoDto>> ConsultarHuecosDisponiblesAsync(ConsultarHuecosRequestDto request, CancellationToken cancellationToken = default);
 
     Task CancelarTurnoAsync(int id, CancellationToken cancellationToken = default);
 
+    Task CancelarTurnoDelPacienteAsync(int id, int usuarioId, CancellationToken cancellationToken = default);
+
     Task CompletarTurnoAsync(int id, CancellationToken cancellationToken = default);
+
+    Task<IEnumerable<TurnoDtoOutput>> ObtenerTurnosDelPacienteAsync(int usuarioId);
 }

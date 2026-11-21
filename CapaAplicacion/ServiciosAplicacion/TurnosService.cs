@@ -103,6 +103,72 @@ public class TurnosService : ITurnosService
         }
     }
 
+    public async Task<int> RegistrarTurnoParaPacienteAsync(CrearTurnoRequestDto nuevoTurno, int usuarioId, CancellationToken cancellationToken = default)
+    {
+        if (nuevoTurno == null)
+            throw new ArgumentNullException(nameof(nuevoTurno));
+
+        Paciente? paciente = await _repositorioPaciente.ObtenerPacientePorUsuarioIdAsync(usuarioId);
+
+        if (paciente == null)
+            throw new KeyNotFoundException("No se encontró el paciente vinculado al usuario autenticado.");
+
+        bool transaccionPropia = !_unitOfWork.TransaccionActiva;
+
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            Tratamiento? tratamiento = await _repositorioTratamiento.ObtenerTratamientoPorIdAsync(
+                nuevoTurno.TratamientoId,
+                cancellationToken);
+
+            if (tratamiento == null)
+                throw new TratamientoNoEncontradoException(nuevoTurno.TratamientoId);
+
+            if (_repositorioOdontologo == null)
+                throw new InvalidOperationException("No se configuró el repositorio de odontólogos.");
+
+            Odontologo? odontologo = await _repositorioOdontologo.ObtenerOdontologoPorId(nuevoTurno.OdontologoId);
+
+            if (odontologo == null)
+                throw new OdontologoNoEncontradoException(nuevoTurno.OdontologoId);
+
+            DateTime inicio = nuevoTurno.FechaHoraInicio;
+            DateTime fin = inicio.Add(tratamiento.DuracionEstimada);
+
+            IReadOnlyList<Turno> turnosDelDia = await _repositorioTurnos.ObtenerTurnosDelDiaAsync(
+                nuevoTurno.OdontologoId,
+                inicio.Date,
+                cancellationToken);
+
+            int nuevoId = await _repositorioTurnos.ObtenerProximoIdAsync(cancellationToken);
+            Turno turno = new Turno(
+                nuevoId,
+                inicio,
+                fin,
+                paciente.Id,
+                nuevoTurno.OdontologoId,
+                nuevoTurno.TratamientoId);
+
+            AgendaDiaria.ValidarDisponibilidad(turnosDelDia, turno);
+
+            await _repositorioTurnos.AgregarTurnoAsync(turno, cancellationToken);
+
+            if (transaccionPropia)
+                await _unitOfWork.CommitAsync(cancellationToken);
+
+            return turno.Id;
+        }
+        catch
+        {
+            if (transaccionPropia)
+                await _unitOfWork.RollbackAsync(cancellationToken);
+
+            throw;
+        }
+    }
+
     public async Task<List<IntervaloTiempoDto>> ConsultarHuecosDisponiblesAsync(
         ConsultarHuecosRequestDto request,
         CancellationToken cancellationToken = default)
@@ -147,6 +213,43 @@ public class TurnosService : ITurnosService
 
             if (turno == null)
                 throw new TurnoNoEncontradoException(id);
+
+            turno.Cancelar();
+
+            await _repositorioTurnos.ActualizarTurnoAsync(turno, cancellationToken);
+
+            if (transaccionPropia)
+                await _unitOfWork.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            if (transaccionPropia)
+                await _unitOfWork.RollbackAsync(cancellationToken);
+
+            throw;
+        }
+    }
+
+    public async Task CancelarTurnoDelPacienteAsync(int id, int usuarioId, CancellationToken cancellationToken = default)
+    {
+        bool transaccionPropia = !_unitOfWork.TransaccionActiva;
+
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            Paciente? paciente = await _repositorioPaciente.ObtenerPacientePorUsuarioIdAsync(usuarioId);
+
+            if (paciente == null)
+                throw new KeyNotFoundException("No se encontró el paciente vinculado al usuario autenticado.");
+
+            Turno? turno = await _repositorioTurnos.ObtenerTurnoPorIdAsync(id, cancellationToken);
+
+            if (turno == null)
+                throw new TurnoNoEncontradoException(id);
+
+            if (turno.PacienteId != paciente.Id)
+                throw new UnauthorizedAccessException("No puede cancelar un turno que no le pertenece.");
 
             turno.Cancelar();
 
@@ -270,15 +373,34 @@ public class TurnosService : ITurnosService
             if (existente == null)
                 throw new TurnoNoEncontradoException(id);
 
-            existente.Reprogramar(turnoEditado.FechaHoraInicio, turnoEditado.FechaHoraFin);
+            Tratamiento? tratamiento = await _repositorioTratamiento.ObtenerTratamientoPorId(turnoEditado.TratamientoId);
+
+            if (tratamiento == null)
+                throw new TratamientoNoEncontradoException(turnoEditado.TratamientoId);
+
+            Paciente? paciente = await _repositorioPaciente.ObtenerPacientePorId(turnoEditado.PacienteId);
+
+            if (paciente == null)
+                throw new PacienteNoEncontradoException(turnoEditado.PacienteId);
+
+            if (_repositorioOdontologo == null)
+                throw new InvalidOperationException("No se configuró el repositorio de odontólogos.");
+
+            Odontologo? odontologo = await _repositorioOdontologo.ObtenerOdontologoPorId(turnoEditado.OdontologoId);
+
+            if (odontologo == null)
+                throw new OdontologoNoEncontradoException(turnoEditado.OdontologoId);
+
+            DateTime inicio = turnoEditado.FechaHoraInicio;
+            DateTime fin = inicio.Add(tratamiento.DuracionEstimada);
+
+            existente.Reprogramar(inicio, fin);
 
             IReadOnlyList<Turno> turnosDelDia = await _repositorioTurnos.ObtenerTurnosDelDiaAsync(
                 turnoEditado.OdontologoId,
-                turnoEditado.FechaHoraInicio.Date);
+                inicio.Date);
 
-            IntervaloDeTiempo nuevoHorario = new IntervaloDeTiempo(
-                turnoEditado.FechaHoraInicio,
-                turnoEditado.FechaHoraFin);
+            IntervaloDeTiempo nuevoHorario = new IntervaloDeTiempo(inicio, fin);
 
             for (int indice = 0; indice < turnosDelDia.Count; indice++)
             {
@@ -296,8 +418,8 @@ public class TurnosService : ITurnosService
 
             Turno turnoModificado = new Turno(
                 id,
-                turnoEditado.FechaHoraInicio,
-                turnoEditado.FechaHoraFin,
+                inicio,
+                fin,
                 turnoEditado.PacienteId,
                 turnoEditado.OdontologoId,
                 turnoEditado.TratamientoId,
@@ -360,6 +482,27 @@ public class TurnosService : ITurnosService
         }
 
         return TurnoMapper.MapMany(listaTurnos);
+    }
+
+    public async Task<IEnumerable<TurnoDtoOutput>> ObtenerTurnosDelPacienteAsync(int usuarioId)
+    {
+        Paciente? paciente = await _repositorioPaciente.ObtenerPacientePorUsuarioIdAsync(usuarioId);
+
+        if (paciente == null)
+            throw new KeyNotFoundException("No se encontró el paciente vinculado al usuario autenticado.");
+
+        IEnumerable<Turno> turnos = await _repositorioTurnos.ObtenerTodos();
+        List<Turno> turnosPaciente = new List<Turno>();
+
+        foreach (Turno turno in turnos)
+        {
+            if (turno.PacienteId == paciente.Id)
+            {
+                turnosPaciente.Add(turno);
+            }
+        }
+
+        return TurnoMapper.MapMany(turnosPaciente);
     }
 
     public async Task<List<IntervaloDeTiempo>> ObtenerHuecosDisponiblesAsync(

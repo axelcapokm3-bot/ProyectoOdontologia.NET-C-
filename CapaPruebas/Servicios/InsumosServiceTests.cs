@@ -53,11 +53,26 @@ public class InsumosServiceTests
     public async Task RegistrarInsumoAsync_NombreConCaracteresInvalidos_LanzaArgumentException()
     {
         // Arrange
-        InsumoDtosInput insumoDto = new InsumoDtosInput(1, "Anestesia 123", CategoriaInsumo.Anestesia, 500);
+        InsumoDtosInput insumoDto = new InsumoDtosInput(1, "Anestesia @#$", CategoriaInsumo.Anestesia, 500);
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(() => _servicio.RegistrarInsumoAsync(insumoDto));
         _mockRepositorio.Verify(r => r.AgregarInsumo(It.IsAny<Insumo>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RegistrarInsumoAsync_NombreConNumerosYMedidas_SeRegistra()
+    {
+        // Arrange
+        InsumoDtosInput insumoDto = new InsumoDtosInput(1, "Jeringa 5ml", CategoriaInsumo.Anestesia, 500);
+
+        // Act
+        await _servicio.RegistrarInsumoAsync(insumoDto);
+
+        // Assert
+        _mockRepositorio.Verify(
+            r => r.AgregarInsumo(It.Is<Insumo>(i => i.Nombre == "Jeringa 5ml")),
+            Times.Once);
     }
 
     [Fact]

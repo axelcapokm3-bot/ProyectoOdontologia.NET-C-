@@ -1,6 +1,7 @@
 using CapaAplicacion.Interfaces;
 using CapaAplicacion.Seguridad.Interfaces;
 using CapaDominio.Entidades;
+using CapaDominio.Excepciones;
 using ProyectoOdontologia.CapaAplicacion.DtosInput;
 using ProyectoOdontologia.CapaAplicacion.DtosOutput;
 
@@ -9,14 +10,23 @@ namespace CapaAplicacion.Seguridad.Servicios;
 public class AuthService : IAuthService
 {
     private readonly IRepositorioUsuario _repositorioUsuario;
+    private readonly IRepositorioPaciente _repositorioPaciente;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtProvider _jwtProvider;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public AuthService(IRepositorioUsuario repositorioUsuario, IPasswordHasher passwordHasher, IJwtProvider jwtProvider)
+    public AuthService(
+        IRepositorioUsuario repositorioUsuario,
+        IRepositorioPaciente repositorioPaciente,
+        IPasswordHasher passwordHasher,
+        IJwtProvider jwtProvider,
+        IUnitOfWork unitOfWork)
     {
         _repositorioUsuario = repositorioUsuario;
+        _repositorioPaciente = repositorioPaciente;
         _passwordHasher = passwordHasher;
         _jwtProvider = jwtProvider;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<AuthResponseDto> RegisterAsync(RegisterUserRequestDto request)
@@ -36,6 +46,52 @@ public class AuthService : IAuthService
 
         await _repositorioUsuario.AgregarAsync(usuario);
         return await GenerarRespuestaAuthAsync(usuario);
+    }
+
+    public async Task<AuthResponseDto> RegistrarPacienteAsync(RegistroPacienteRequestDto request)
+    {
+        if (await _repositorioUsuario.ObtenerPorNombreUsuarioAsync(request.NombreUsuario) is not null)
+            throw new DomainException("Ya existe un usuario con ese nombre de usuario.");
+
+        if (await _repositorioUsuario.ObtenerPorEmailAsync(request.Email) is not null)
+            throw new DomainException("Ya existe un usuario con ese correo electrónico.");
+
+        await _unitOfWork.IniciarTransaccionAsync();
+
+        try
+        {
+            int idUsuario = _repositorioUsuario.IdAutoIncrementoSincrono();
+
+            Usuario usuario = Usuario.CrearParaRegistroPublico(
+                idUsuario,
+                request.NombreUsuario,
+                request.Email,
+                _passwordHasher.Hash(request.Password));
+
+            await _repositorioUsuario.AgregarAsync(usuario);
+
+            int idPaciente = _repositorioPaciente.IdAutoIncrementoSincrono();
+
+            Paciente paciente = new Paciente(
+                idPaciente,
+                request.Nombre,
+                request.Apellido,
+                request.FechaNacimiento,
+                request.Telefono,
+                request.Email,
+                usuarioId: usuario.Id);
+
+            await _repositorioPaciente.AgregarPaciente(paciente);
+
+            await _unitOfWork.CommitAsync();
+
+            return await GenerarRespuestaAuthAsync(usuario);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
     }
 
    public async Task<AuthResponseDto> LoginAsync(LoginRequestDto request)

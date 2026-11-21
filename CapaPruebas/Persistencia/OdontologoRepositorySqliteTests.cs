@@ -12,7 +12,7 @@ public class OdontologoRepositorySqliteTests
             nombre,
             matricula,
             "Odontología general",
-            12345678,
+            "12345678",
             5);
     }
 
@@ -37,7 +37,7 @@ public class OdontologoRepositorySqliteTests
         Assert.Equal("Carlos", recuperado.Nombre);
         Assert.Equal("MAT-001", recuperado.Matricula);
         Assert.Equal("Odontología general", recuperado.Especialidad);
-        Assert.Equal(12345678, recuperado.Telefono);
+        Assert.Equal("12345678", recuperado.Telefono);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class OdontologoRepositorySqliteTests
             "Carlos",
             "MAT-001",
             "Ortodoncia",
-            87654321,
+            "87654321",
             5);
 
         // Act
@@ -87,7 +87,7 @@ public class OdontologoRepositorySqliteTests
         // Assert
         Assert.NotNull(recuperado);
         Assert.Equal("Ortodoncia", recuperado!.Especialidad);
-        Assert.Equal(87654321, recuperado.Telefono);
+        Assert.Equal("87654321", recuperado.Telefono);
         Assert.True(eliminado);
         Assert.Null(despuesDeEliminar);
     }

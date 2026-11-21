@@ -68,7 +68,7 @@ public class TurnosServiceConcurrenciaTests
                 "Odontologo Concurrente",
                 "MAT-1234",
                 "Odontologia General",
-                55500010));
+                "55500010"));
     }
 
     private static async Task RegistrarTurnoAsync(SqliteTestDatabase baseDeDatos, DateTime inicio)

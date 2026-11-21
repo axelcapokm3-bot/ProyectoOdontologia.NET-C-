@@ -6,6 +6,7 @@ namespace CapaAplicacion.Seguridad.Interfaces;
 public interface IAuthService
 {
     Task<AuthResponseDto> RegisterAsync(RegisterUserRequestDto request);
+    Task<AuthResponseDto> RegistrarPacienteAsync(RegistroPacienteRequestDto request);
     Task<AuthResponseDto> LoginAsync(LoginRequestDto request);
     Task<AuthResponseDto> RefreshAsync(RefreshTokenRequestDto request);
 }

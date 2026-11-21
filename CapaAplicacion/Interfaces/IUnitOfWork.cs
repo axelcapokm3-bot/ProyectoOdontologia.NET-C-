@@ -1,3 +1,5 @@
+
+
 namespace CapaAplicacion.Interfaces;
 
 using System;

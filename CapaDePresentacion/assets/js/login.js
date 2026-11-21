@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const errorBox = document.getElementById("loginError");
     const errorText = document.getElementById("loginErrorText");
 
-    const rolesConAcceso = ["Admin", "Odontologo", "Recepcionista"];
+    const rolesConAcceso = ["Admin", "Odontologo", "Recepcionista", "Paciente"];
 
     const setError = (message) => {
         if (!errorBox || !errorText) return;
@@ -21,6 +21,25 @@ document.addEventListener("DOMContentLoaded", () => {
         submitButton.classList.toggle("is-loading", loading);
         submitButton.setAttribute("aria-busy", String(loading));
     };
+
+    async function ejecutarConBloqueo(boton, textoProcesando, accionAsync) {
+        if (!boton || boton.disabled || boton.dataset.enCurso === "true") {
+            return;
+        }
+        const textoOriginal = boton.textContent;
+        boton.dataset.enCurso = "true";
+        boton.disabled = true;
+        if (textoProcesando) {
+            boton.textContent = textoProcesando;
+        }
+        try {
+            await accionAsync();
+        } finally {
+            boton.dataset.enCurso = "false";
+            boton.disabled = false;
+            boton.textContent = textoOriginal;
+        }
+    }
 
     if (passwordToggle && passwordInput) {
         passwordToggle.addEventListener("click", () => {
@@ -37,6 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!form) return;
 
     form.addEventListener("submit", async (event) => {
+        if (submitButton.dataset.enCurso === "true") return;
         event.preventDefault();
         setError("");
 
@@ -49,6 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        submitButton.dataset.enCurso = "true";
         setLoading(true);
 
         try {
@@ -77,6 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 : (error.message || "No se pudo iniciar sesión.");
             setError(mensaje);
         } finally {
+            submitButton.dataset.enCurso = "false";
             setLoading(false);
         }
     });

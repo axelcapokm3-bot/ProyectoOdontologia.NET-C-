@@ -4,6 +4,7 @@ using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 using CapaAplicacion.Interfaces;
+using CapaInfraestructura.Servicios;
 using Dapper;
 
 public static class DatabaseInitializer
@@ -25,7 +26,7 @@ CREATE TABLE IF NOT EXISTS Odontologos (
     Nombre TEXT NOT NULL,
     Matricula TEXT NOT NULL,
     Especialidad TEXT NOT NULL,
-    Telefono INTEGER NOT NULL
+    Telefono TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Insumos (
@@ -81,6 +82,25 @@ CREATE TABLE IF NOT EXISTS Turnos (
     FOREIGN KEY (TratamientoId) REFERENCES Tratamientos (Id) ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS Usuarios (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    NombreUsuario TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    Email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    PasswordHash TEXT NOT NULL,
+    Rol INTEGER NOT NULL,
+    EstaActivo INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS RefreshTokens (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    UsuarioId INTEGER NOT NULL,
+    Token TEXT NOT NULL UNIQUE,
+    ExpiraUtc TEXT NOT NULL,
+    Usado INTEGER NOT NULL,
+    Revocado INTEGER NOT NULL,
+    FOREIGN KEY (UsuarioId) REFERENCES Usuarios (Id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS IX_Turnos_OdontologoId_FechaHoraInicio
     ON Turnos (OdontologoId, FechaHoraInicio);
 
@@ -109,14 +129,22 @@ CREATE INDEX IF NOT EXISTS IX_Odontologos_Matricula
     ON Odontologos (Matricula);
 
 CREATE INDEX IF NOT EXISTS IX_Insumos_Categoria
-    ON Insumos (Categoria);";
+    ON Insumos (Categoria);
 
-    public static async Task InicializarAsync(IDbConnectionFactory connectionFactory, CancellationToken cancellationToken = default)
+CREATE INDEX IF NOT EXISTS IX_RefreshTokens_UsuarioId
+    ON RefreshTokens (UsuarioId);";
+
+    public static async Task InicializarAsync(
+        IDbConnectionFactory connectionFactory,
+        CancellationToken cancellationToken = default,
+        string? passwordAdmin = null)
     {
         if (connectionFactory is null) throw new ArgumentNullException(nameof(connectionFactory));
 
         using IDbConnection connection = connectionFactory.CreateConnection();
         connection.Open();
+
+        await connection.ExecuteAsync(new CommandDefinition("PRAGMA foreign_keys = OFF;"));
 
         using IDbTransaction transaction = connection.BeginTransaction();
 
@@ -128,6 +156,8 @@ CREATE INDEX IF NOT EXISTS IX_Insumos_Categoria
                 cancellationToken: cancellationToken);
 
             await connection.ExecuteAsync(command);
+
+            await MigrarTelefonoOdontologosAsync(connection, transaction, cancellationToken);
 
             CommandDefinition consultaColumna = new CommandDefinition(
                 "SELECT COUNT(*) FROM pragma_table_info('Insumos') WHERE name = 'StockMinimo';",
@@ -157,6 +187,8 @@ CREATE INDEX IF NOT EXISTS IX_Insumos_Categoria
 
             await AsegurarClavesForaneasTurnosAsync(connection, transaction);
 
+            await SembrarAdminAsync(connection, transaction, passwordAdmin, cancellationToken);
+
             transaction.Commit();
         }
         catch
@@ -164,6 +196,105 @@ CREATE INDEX IF NOT EXISTS IX_Insumos_Categoria
             transaction.Rollback();
             throw;
         }
+    }
+
+    private static async Task SembrarAdminAsync(
+        IDbConnection connection,
+        IDbTransaction transaction,
+        string? passwordAdmin,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(passwordAdmin))
+        {
+            Console.WriteLine("[ADVERTENCIA] 'Seed:AdminPassword' no está configurado (User Secrets o variables de entorno). No se sembró el usuario admin.");
+            return;
+        }
+
+        CommandDefinition consultaAdmin = new CommandDefinition(
+            "SELECT COUNT(*) FROM Usuarios WHERE NombreUsuario = 'admin';",
+            transaction: transaction,
+            cancellationToken: cancellationToken);
+
+        long existeAdmin = await connection.ExecuteScalarAsync<long>(consultaAdmin);
+
+        if (existeAdmin > 0)
+            return;
+
+        string passwordHash = new PasswordHasherBCrypt().Hash(passwordAdmin);
+
+        CommandDefinition insertarAdmin = new CommandDefinition(
+            @"
+INSERT INTO Usuarios (NombreUsuario, Email, PasswordHash, Rol, EstaActivo)
+VALUES ('admin', 'admin@local.com', @PasswordHash, 4, 1);",
+            new { PasswordHash = passwordHash },
+            transaction: transaction,
+            cancellationToken: cancellationToken);
+
+        await connection.ExecuteAsync(insertarAdmin);
+    }
+
+    private static async Task MigrarTelefonoOdontologosAsync(
+        IDbConnection connection,
+        IDbTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        CommandDefinition consultaColumnas = new CommandDefinition(
+            "PRAGMA table_info('Odontologos');",
+            transaction: transaction,
+            cancellationToken: cancellationToken);
+
+        IEnumerable<FilaColumnaOdontologos> columnas = await connection.QueryAsync<FilaColumnaOdontologos>(consultaColumnas);
+
+        bool tablaExiste = false;
+        bool telefonoEsTexto = false;
+
+        foreach (FilaColumnaOdontologos columna in columnas)
+        {
+            tablaExiste = true;
+
+            if (string.Equals(columna.Name, "Telefono", StringComparison.OrdinalIgnoreCase))
+            {
+                string tipoColumna = columna.Type ?? string.Empty;
+
+                if (tipoColumna.ToUpperInvariant().Contains("TEXT"))
+                {
+                    telefonoEsTexto = true;
+                }
+            }
+        }
+
+        if (!tablaExiste || telefonoEsTexto)
+            return;
+
+        const string migracionSql = @"
+DROP TABLE IF EXISTS Odontologos_Nuevo;
+
+CREATE TABLE Odontologos_Nuevo (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    UsuarioId INTEGER NULL,
+    Nombre TEXT NOT NULL,
+    Matricula TEXT NOT NULL,
+    Especialidad TEXT NOT NULL,
+    Telefono TEXT NOT NULL
+);
+
+INSERT INTO Odontologos_Nuevo (Id, UsuarioId, Nombre, Matricula, Especialidad, Telefono)
+SELECT Id, UsuarioId, Nombre, Matricula, Especialidad, CAST(Telefono AS TEXT)
+FROM Odontologos;
+
+DROP TABLE Odontologos;
+
+ALTER TABLE Odontologos_Nuevo RENAME TO Odontologos;
+
+CREATE INDEX IF NOT EXISTS IX_Odontologos_Matricula
+    ON Odontologos (Matricula);";
+
+        CommandDefinition migracion = new CommandDefinition(
+            migracionSql,
+            transaction: transaction,
+            cancellationToken: cancellationToken);
+
+        await connection.ExecuteAsync(migracion);
     }
 
     private static async Task MigrarTratamientoInsumosAsync(
@@ -291,6 +422,13 @@ CREATE INDEX IF NOT EXISTS IX_Turnos_TratamientoId
             transaction: transaction);
 
         await connection.ExecuteAsync(migracion);
+    }
+
+    private sealed class FilaColumnaOdontologos
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public string Type { get; set; } = string.Empty;
     }
 
     private sealed class FilaClaveForanea

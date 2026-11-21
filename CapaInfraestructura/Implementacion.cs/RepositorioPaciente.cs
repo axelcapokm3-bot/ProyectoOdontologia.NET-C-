@@ -130,4 +130,17 @@ public class RepositorioPaciente : IRepositorioPaciente
     {
         return Interlocked.Increment(ref _contadorId);
     }
+
+    public Task<Paciente?> ObtenerPacientePorUsuarioIdAsync(int usuarioId)
+    {
+        foreach (Paciente paciente in _pacientes.Values)
+        {
+            if (paciente.UsuarioId.HasValue && paciente.UsuarioId.Value == usuarioId)
+            {
+                return Task.FromResult<Paciente?>(paciente);
+            }
+        }
+
+        return Task.FromResult<Paciente?>(null);
+    }
 }

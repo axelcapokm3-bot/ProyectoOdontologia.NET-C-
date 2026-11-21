@@ -38,24 +38,32 @@ public class OdontologoService : IOdontologoService
 
         await _unitOfWork.BeginTransactionAsync();
 
-        int idOdontologo = _repositorioOdontologo.IdAutoIncrementoSincrono();
-        int? usuarioId = odontologo.UsuarioId;
-
-        if (usuarioId is null && !string.IsNullOrWhiteSpace(odontologo.NombreUsuario) && !string.IsNullOrWhiteSpace(odontologo.Password))
+        try
         {
-            usuarioId = await CrearUsuarioOdontologoAsync(odontologo.NombreUsuario, odontologo.Matricula, odontologo.Password);
+            int idOdontologo = _repositorioOdontologo.IdAutoIncrementoSincrono();
+            int? usuarioId = odontologo.UsuarioId;
+
+            if (usuarioId is null && !string.IsNullOrWhiteSpace(odontologo.NombreUsuario) && !string.IsNullOrWhiteSpace(odontologo.Password))
+            {
+                usuarioId = await CrearUsuarioOdontologoAsync(odontologo.NombreUsuario, odontologo.Matricula, odontologo.Password);
+            }
+
+            Odontologo nuevoOdontologo = new Odontologo(
+                idOdontologo,
+                odontologo.Nombre,
+                odontologo.Matricula,
+                odontologo.Especialidad,
+                odontologo.Telefono,
+                usuarioId);
+
+            await _repositorioOdontologo.AgregarOdontologo(nuevoOdontologo);
+            await _unitOfWork.CommitAsync();
         }
-
-        Odontologo nuevoOdontologo = new Odontologo(
-            idOdontologo,
-            odontologo.Nombre,
-            odontologo.Matricula,
-            odontologo.Especialidad,
-            odontologo.Telefono,
-            usuarioId);
-
-        await _repositorioOdontologo.AgregarOdontologo(nuevoOdontologo);
-        await _unitOfWork.CommitAsync();
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<IEnumerable<OdontologoOutputDto>> ObtenerTodosLosOdontologosAsync()
@@ -93,46 +101,62 @@ public class OdontologoService : IOdontologoService
     {
         await _unitOfWork.BeginTransactionAsync();
 
-        Odontologo? odontologoExistente = await _repositorioOdontologo.ObtenerOdontologoPorId(id);
-
-        if (odontologoExistente == null)
+        try
         {
-            throw new OdontologoNoEncontradoException(id);
+            Odontologo? odontologoExistente = await _repositorioOdontologo.ObtenerOdontologoPorId(id);
+
+            if (odontologoExistente == null)
+            {
+                throw new OdontologoNoEncontradoException(id);
+            }
+
+            Odontologo odontologoActualizado = new Odontologo(
+                id,
+                odontologoDto.Nombre,
+                odontologoDto.Matricula,
+                odontologoDto.Especialidad,
+                odontologoDto.Telefono,
+                odontologoDto.UsuarioId);
+
+            await _repositorioOdontologo.ActualizarOdontologo(odontologoActualizado);
+            await _unitOfWork.CommitAsync();
         }
-
-        Odontologo odontologoActualizado = new Odontologo(
-            id,
-            odontologoDto.Nombre,
-            odontologoDto.Matricula,
-            odontologoDto.Especialidad,
-            odontologoDto.Telefono,
-            odontologoDto.UsuarioId);
-
-        await _repositorioOdontologo.ActualizarOdontologo(odontologoActualizado);
-        await _unitOfWork.CommitAsync();
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<bool> EliminarOdontologoAsync(int id)
     {
         await _unitOfWork.BeginTransactionAsync();
 
-        Odontologo? existente = await _repositorioOdontologo.ObtenerOdontologoPorId(id);
-
-        if (existente == null)
+        try
         {
-            throw new OdontologoNoEncontradoException(id);
+            Odontologo? existente = await _repositorioOdontologo.ObtenerOdontologoPorId(id);
+
+            if (existente == null)
+            {
+                throw new OdontologoNoEncontradoException(id);
+            }
+
+            bool eliminado = await _repositorioOdontologo.EliminarOdontologo(id);
+
+            if (!eliminado)
+            {
+                throw new OdontologoNoEncontradoException(id);
+            }
+
+            await _unitOfWork.CommitAsync();
+
+            return true;
         }
-
-        bool eliminado = await _repositorioOdontologo.EliminarOdontologo(id);
-
-        if (!eliminado)
+        catch
         {
-            throw new OdontologoNoEncontradoException(id);
+            await _unitOfWork.RollbackAsync();
+            throw;
         }
-
-        await _unitOfWork.CommitAsync();
-
-        return true;
     }
 
     public async Task<bool> ValidadorMatricula(OdontologoInputDto odontologo)

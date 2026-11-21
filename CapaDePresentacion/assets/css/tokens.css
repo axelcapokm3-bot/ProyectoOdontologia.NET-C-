@@ -1,148 +1,212 @@
 /* ============================================================
-   OdontoCare — Design tokens compartidos
-   Sistema visual único para Login y Panel clínico.
+   OdontoCare — Design tokens (sistema visual clínico elevado)
+   Custom Properties semánticas, light-dark(), superficies de vidrio,
+   acentos cobalto/esmeralda, escala fluida con clamp(),
+   profundidad 3D (tilt, specular, capas de elevación) y
+   contenedores con @container / subgrid.
    ============================================================ */
 
 :root {
   color-scheme: light;
 
-  --font-display: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
-  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  /* ---------- Tipografía ---------- */
+  --font-display: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 
-  /* Tinta */
-  --ink-900: #092330;
-  --ink-800: #123543;
-  --ink-700: #294654;
-  --ink-600: #45606d;
-  --ink-500: #5d7380;
-  --ink-400: #8197a1;
-  --ink-300: #b4c5cd;
+  /* Escala fluida (clamp) */
+  --fs-eyebrow: clamp(10px, 0.8vw, 11px);
+  --fs-label: clamp(11.5px, 0.9vw, 12.5px);
+  --fs-body: clamp(13px, 1vw, 14px);
+  --fs-h3: clamp(15px, 1.2vw, 17px);
+  --fs-h2: clamp(20px, 2vw, 26px);
+  --fs-h1: clamp(26px, 2.5vw, 34px);
+  --fs-value: clamp(28px, 3vw, 42px);
 
-  /* Marca clínica */
-  --brand-950: #03232c;
-  --brand-900: #043440;
-  --brand-800: #05495a;
-  --brand-700: #075e72;
-  --brand-600: #097388;
-  --brand-500: #0f8fa5;
-  --brand-400: #35b6c8;
-  --brand-300: #7adbe4;
-  --brand-200: #b4edf2;
-  --brand-100: #dcf7fa;
-  --brand-50: #f0fbfd;
+  /* ---------- Tinta clínica (grises fríos) ---------- */
+  --ink-950: #0b1d26;
+  --ink-900: #102a35;
+  --ink-800: #1c3d4b;
+  --ink-700: #2c4f5f;
+  --ink-600: #426170;
+  --ink-500: #5f7b8a;
+  --ink-400: #8aa3ad;
+  --ink-300: #b9ccd3;
+  --ink-200: #d9e4e9;
+  --ink-100: #eef3f5;
 
-  /* Acentos */
-  --mint-600: #0d9480;
-  --mint-500: #17b7a2;
-  --mint-400: #4ad3be;
-  --mint-100: #ddf8f2;
+  /* ---------- Marca: azul cobalto clínico + esmeralda profundo ---------- */
+  --brand-950: #041a22;
+  --brand-900: #072d38;
+  --brand-800: #0a4656;
+  --brand-700: #0d5f72;
+  --brand-600: #10788c;
+  --brand-500: #14a1c0;
+  --brand-400: #4fc3d9;
+  --brand-300: #8adcee;
+  --brand-200: #c9f1f8;
+  --brand-100: #e6f8fb;
+  --brand-50: #f1fcfd;
 
+  /* Esmeralda profundo (acento secundario) */
+  --emerald-950: #06221c;
+  --emerald-900: #09342a;
+  --emerald-800: #0c493b;
+  --emerald-700: #0f604e;
+  --emerald-600: #137a63;
+  --emerald-500: #17a380;
+  --emerald-400: #4cc0a8;
+  --emerald-100: #dcf4ec;
+  --emerald-50: #f0fbf6;
+
+  /* ---------- Semántica de superficie (light-dark nativo) ---------- */
+  --surface: light-dark(#ffffff, #0f1a21);
+  --surface-0: #ffffff;
+  --surface-1: #f7fafb;
+  --surface-2: #eff5f7;
+  --surface-3: #e6edf0;
+  --surface-elevated: light-dark(rgba(255, 255, 255, 0.92), rgba(20, 34, 42, 0.6));
+  --surface-glass: light-dark(rgba(255, 255, 255, 0.78), rgba(20, 34, 42, 0.55));
+
+  --stroke: #dde7ea;
+  --stroke-strong: #c7d8dd;
+  --stroke-glass: rgba(205, 222, 229, 0.45);
+  --glass-border: rgba(15, 128, 148, 0.18);
+  --glass-border-hover: rgba(15, 128, 148, 0.34);
+
+  /* ---------- Estados ---------- */
+  --danger-900: #3d141c;
   --danger-600: #b73c4b;
   --danger-500: #d4535f;
   --danger-100: #fdecef;
+  --danger-50: #fef3f4;
 
   --warning-600: #a86a12;
   --warning-500: #d9971f;
   --warning-100: #fdf4e1;
+  --warning-50: #fef9ec;
 
   --success-600: #157d5c;
   --success-500: #22a377;
   --success-100: #e2f7ef;
+  --success-50: #f0faf4;
 
-  --violet-600: #5852b8;
-  --violet-100: #eeedfd;
-
-  /* Superficies */
-  --surface-0: #ffffff;
-  --surface-1: #f7fbfc;
-  --surface-2: #eff6f8;
-  --surface-3: #e5eff2;
-  --stroke: #dfeaee;
-  --stroke-strong: #c8dbe1;
-
-  /* Radios */
-  --radius-xs: 8px;
-  --radius-sm: 11px;
-  --radius-md: 15px;
+  /* ---------- Radios ---------- */
+  --radius-xs: 7px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
   --radius-lg: 20px;
   --radius-xl: 28px;
-  --radius-2xl: 36px;
+  --radius-2xl: 40px;
   --radius-pill: 999px;
 
-  /* Profundidad */
-  --shadow-xs: 0 1px 2px rgba(6, 38, 49, 0.06);
-  --shadow-sm: 0 2px 6px -2px rgba(6, 38, 49, 0.1), 0 10px 24px -18px rgba(6, 38, 49, 0.25);
-  --shadow-md: 0 18px 40px -28px rgba(6, 38, 49, 0.38), 0 4px 12px -8px rgba(6, 38, 49, 0.12);
-  --shadow-lg: 0 44px 90px -48px rgba(3, 35, 44, 0.55);
-  --shadow-glow: 0 20px 50px -24px rgba(15, 143, 165, 0.55);
-  --ring: 0 0 0 4px rgba(15, 143, 165, 0.16);
+  /* ---------- Profundidad 3D (elevación táctil) ---------- */
+  --perspective-card: 1000px;
+  --tilt-rotate: 4deg;
+  --tilt-scale: 1.02;
+  --tilt-duration: 150ms;
 
-  /* Movimiento */
+  --shadow-ambient: 0 0 0 1px rgba(11, 29, 38, 0.06);
+  --shadow-contact: 0 1px 2px rgba(11, 29, 38, 0.04);
+  --shadow-lift: 0 20px 44px -16px rgba(3, 26, 36, 0.22);
+  --shadow-card: 0 8px 24px -8px rgba(3, 26, 36, 0.10), var(--shadow-ambient), var(--shadow-contact);
+  --shadow-card-hover: 0 24px 48px -16px rgba(3, 26, 36, 0.18), var(--shadow-ambient), var(--shadow-contact);
+  --shadow-glow-brand: 0 24px 56px -24px rgba(20, 161, 192, 0.42);
+  --shadow-glow-emerald: 0 24px 56px -24px rgba(23, 163, 128, 0.34);
+  --ring-brand: 0 0 0 4px rgba(20, 161, 192, 0.14);
+  --ring-emerald: 0 0 0 4px rgba(23, 163, 128, 0.14);
+
+  /* Brillo especular dinámico */
+  --specular-gradient: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(255, 255, 255, 0) 35%,
+    rgba(255, 255, 255, 0.2) 100%
+  );
+
+  /* ---------- Movimiento (solo transform / opacity → 60 FPS, CLS = 0) ---------- */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --dur-fast: 140ms;
-  --dur: 220ms;
-  --dur-slow: 460ms;
+  --dur-fast: 120ms;
+  --dur: 260ms;
+  --dur-slow: 520ms;
 
-  /* Layout */
-  --sidebar-w: 278px;
-  --content-max: 1440px;
+  /* ---------- Layout ---------- */
+  --sidebar-w: 280px;
+  --content-max: 1480px;
+  --header-h: 64px;
+  --z-toast: 1000;
+  --z-modal: 1100;
+  --z-backdrop: 1050;
+  --z-fixed: 80;
+  --z-sticky: 40;
 }
 
-* {
-  box-sizing: border-box;
+/* Tema oscuro nativo (light-dark) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-0: #0f1a21;
+    --surface-1: #14222a;
+    --surface-2: #1c2d36;
+    --surface-3: #243842;
+    --stroke: #2c404b;
+    --stroke-strong: #3a525f;
+    --glass-bg: rgba(20, 34, 42, 0.55);
+    --glass-border: rgba(122, 219, 228, 0.14);
+    --ink-950: #e8f2f5;
+    --ink-900: #d7e5ea;
+    --ink-800: #c3d8de;
+    --ink-700: #aec2c9;
+    --ink-600: #8fa0ab;
+    --ink-500: #6f828d;
+    --ink-400: #556873;
+    --ink-300: #3d525e;
+    --ink-200: #2a3d48;
+    --ink-100: #1c2b33;
+    --shadow-lift: 0 20px 44px -16px rgba(0, 0, 0, 0.45);
+    --shadow-card: 0 8px 24px -8px rgba(0, 0, 0, 0.35), var(--shadow-ambient), var(--shadow-contact);
+    --shadow-card-hover: 0 24px 48px -16px rgba(0, 0, 0, 0.42), var(--shadow-ambient), var(--shadow-contact);
+  }
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
-}
+/* ---------- Reset base ---------- */
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-}
-
-img,
-svg {
-  display: block;
-  max-width: 100%;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-button {
-  -webkit-tap-highlight-color: transparent;
-}
-
-::selection {
-  background: rgba(15, 143, 165, 0.22);
   color: var(--ink-900);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.55;
+  background: var(--surface-1);
+  overflow-x: hidden;
 }
+
+img, svg { display: block; max-width: 100%; }
+
+button, input, select, textarea { font: inherit; }
+
+button { -webkit-tap-highlight-color: transparent; }
+
+::selection { background: rgba(20, 161, 192, 0.25); color: var(--ink-900); }
 
 :focus-visible {
   outline: 2px solid var(--brand-500);
   outline-offset: 3px;
+  outline-radius: 6px;
 }
 
 .material-symbols-outlined {
   font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24;
   user-select: none;
+  display: inline-block;
 }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--stroke-strong) transparent;
-}
+* { scrollbar-width: thin; scrollbar-color: var(--stroke-strong) transparent; }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+::-webkit-scrollbar { width: 10px; height: 10px; }
 
 ::-webkit-scrollbar-thumb {
   background: var(--stroke-strong);
@@ -151,19 +215,141 @@ button {
   background-clip: padding-box;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--ink-300);
-  border: 3px solid transparent;
-  background-clip: padding-box;
-}
+::-webkit-scrollbar-thumb:hover { background: var(--ink-400); }
 
+/* Reducido de movimiento → sin 3D ni transiciones amplias */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .tilt-card { transform: none !important; transition: none !important; }
+  .tilt-layer, .specular { display: none !important; }
 }
+
+/* ---------- Utilidades de profundidad 3D ---------- */
+.isolate-3d { transform-style: preserve-3d; perspective: var(--perspective-card); }
+.perspective-card {
+  transform-style: preserve-3d;
+  perspective: var(--perspective-card);
+}
+.tilt-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  transform: translateZ(24px);
+}
+.specular {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--specular-gradient);
+  opacity: 0;
+  transition: opacity var(--dur-fast) ease, transform var(--dur) var(--ease-out);
+}
+
+/* ---------- Skeleton (shimmer sutil, CLS = 0) ---------- */
+.skeleton {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  height: 11px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  animation: skeletonPulse 1.6s ease infinite;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-130%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  animation: skeletonShimmer 2s ease infinite;
+}
+
+.skeleton-line { width: 72%; }
+.skeleton-line-sm { width: 44%; }
+.skeleton-line-lg { width: 94%; }
+
+.skeleton-avatar { width: 34px; height: 34px; border-radius: 10px; }
+.skeleton-text { height: 13px; border-radius: 6px; }
+
+/* ---------- Reveal escalonado ---------- */
+.reveal-item {
+  opacity: 0;
+  transform: translateY(14px) translateZ(0);
+  animation: revealUp var(--dur-slow) var(--ease-out) forwards;
+}
+.reveal-item:nth-child(2) { animation-delay: 60ms; }
+.reveal-item:nth-child(3) { animation-delay: 120ms; }
+.reveal-item:nth-child(4) { animation-delay: 180ms; }
+.reveal-item:nth-child(5) { animation-delay: 240ms; }
+.reveal-item:nth-child(6) { animation-delay: 300ms; }
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.9; }
+}
+
+@keyframes skeletonShimmer {
+  100% { transform: translateX(130%); }
+}
+
+@keyframes revealUp {
+  to { opacity: 1; transform: none; }
+}
+
+.text-wrap-balance { text-wrap: balance; }
+
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ---------- View Transitions API ---------- */
+.view-transition-section {
+  view-transition-name: section;
+}
+::view-transition-group(section) {
+  duration: var(--dur-slow);
+  easing: var(--ease-spring);
+}
+::view-transition-old(section),
+::view-transition-new(section) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-new(section) {
+  animation: vtFadeIn var(--dur-slow) var(--ease-out) both;
+}
+@keyframes vtFadeIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.995); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- popover (menús contextuales / notificaciones) ---------- */
+popover {
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--surface-0);
+  box-shadow: var(--shadow-lift);
+  padding: 0;
+  color: var(--ink-900);
+  font-size: var(--fs-label);
+}
+popover::backdrop {
+  background: rgba(3, 35, 44, 0.3);
+  backdrop-filter: blur(4px);
+}
+:popover-open { animation: popoverIn var(--dur) var(--ease-out) both; }
+@keyframes popoverIn {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Tipos de container query ---------- */
+@container card (min-width: 320px) { }
+@container metrics (min-width: 200px) { }
+@container table-panel (min-width: 420px) { }

@@ -28,6 +28,17 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [HttpPost("registro")]
+    public async Task<IActionResult> RegistroPaciente([FromBody] RegistroPacienteRequestDto request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var resultado = await _authService.RegistrarPacienteAsync(request);
+        return Created(string.Empty, resultado);
+    }
+
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
     {

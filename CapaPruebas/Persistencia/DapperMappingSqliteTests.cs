@@ -23,7 +23,7 @@ INSERT INTO Pacientes (Id, Nombre, Apellido, FechaNacimiento, Telefono, Email)
 VALUES (7, 'Paciente', 'Siete', '1990-01-01', '555-0007', 'paciente7@example.com');
 
 INSERT INTO Odontologos (Id, Nombre, Matricula, Especialidad, Telefono)
-VALUES (3, 'Odontologo Tres', 'MAT-3333', 'Odontologia General', 55500003);
+VALUES (3, 'Odontologo Tres', 'MAT-3333', 'Odontologia General', '55500003');
 
 INSERT INTO Turnos (Id, FechaHoraInicio, FechaHoraFin, PacienteId, OdontologoId, TratamientoId, Estado)
 VALUES (1, '2026-06-01 09:00:00', '2026-06-01 09:45:00', 7, 3, 1, 3);");
@@ -68,7 +68,7 @@ INSERT INTO Pacientes (Id, Nombre, Apellido, FechaNacimiento, Telefono, Email)
 VALUES (7, 'Paciente', 'Siete', '1990-01-01', '555-0007', 'paciente7@example.com');
 
 INSERT INTO Odontologos (Id, Nombre, Matricula, Especialidad, Telefono)
-VALUES (3, 'Odontologo Tres', 'MAT-3333', 'Odontologia General', 55500003);
+VALUES (3, 'Odontologo Tres', 'MAT-3333', 'Odontologia General', '55500003');
 
 INSERT INTO Turnos (Id, FechaHoraInicio, FechaHoraFin, PacienteId, OdontologoId, TratamientoId, Estado)
 VALUES (1, '2026-06-01 10:00:00', '2026-06-01 09:00:00', 7, 3, 1, 1);");

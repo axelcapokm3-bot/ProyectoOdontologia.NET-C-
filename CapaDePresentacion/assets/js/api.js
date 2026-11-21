@@ -19,7 +19,7 @@ const Api = {
     localStorage.removeItem(APP_CONFIG.userKey);
   },
 
-  async request(endpoint, options = {}) {
+  async request(endpoint, options = {}, _esReintento = false) {
     const request = async baseUrl => {
       const headers = { "Content-Type": "application/json", ...options.headers };
       if (this.accessToken && !headers.Authorization) {
@@ -52,9 +52,13 @@ const Api = {
     }
 
     if (!response.ok) {
-      const esLogin = endpoint.toLowerCase() === "auth/login";
+      const endpointNormalizado = endpoint.toLowerCase();
 
-      if (response.status === 401 && !esLogin) {
+      if (response.status === 401 && endpointNormalizado !== "auth/login" && endpointNormalizado !== "auth/refresh") {
+        if (!_esReintento && await this._refreshSession()) {
+          return this.request(endpoint, options, true);
+        }
+
         this.clearSession();
         window.location.href = "Login.html";
         throw new Error("Sesión expirada o no autorizada. Por favor, inicia sesión.");
@@ -85,6 +89,32 @@ const Api = {
     return raw;
   },
 
+  _refreshSession() {
+    if (!this._refreshPromise) {
+      this._refreshPromise = this._executeRefresh().finally(() => {
+        this._refreshPromise = null;
+      });
+    }
+    return this._refreshPromise;
+  },
+
+  async _executeRefresh() {
+    const refreshToken = localStorage.getItem(APP_CONFIG.refreshTokenKey);
+    if (!refreshToken) return false;
+
+    try {
+      const auth = await this.request("Auth/refresh", {
+        method: "POST",
+        body: JSON.stringify({ refreshToken })
+      });
+      if (!auth?.accessToken) return false;
+      this.setSession(auth);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  },
+
   list(endpoint) { return this.request(endpoint); },
   search(endpoint, texto) { return this.request(`${endpoint}/buscar?texto=${encodeURIComponent(texto)}`); },
   create(endpoint, payload) { return this.request(endpoint, { method: "POST", body: JSON.stringify(payload) }); },
@@ -93,5 +123,6 @@ const Api = {
   remove(endpoint, id) { return this.request(`${endpoint}/${id}`, { method: "DELETE" }); },
   login(payload) { return this.request("Auth/login", { method: "POST", body: JSON.stringify(payload) }); },
   register(payload) { return this.request("Auth/register", { method: "POST", body: JSON.stringify(payload) }); },
+  registroPaciente(payload) { return this.request("Auth/registro", { method: "POST", body: JSON.stringify(payload) }); },
   refresh(payload) { return this.request("Auth/refresh", { method: "POST", body: JSON.stringify(payload) }); }
 };

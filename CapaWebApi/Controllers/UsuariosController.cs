@@ -20,7 +20,7 @@ public class UsuariosController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> ObtenerTodos()
     {
-        var usuarios = await _usuarioAdminService.ObtenerTodosAsync();
+        var usuarios = await _usuarioAdminService.ListarUsuariosAsync();
         return Ok(usuarios);
     }
 
@@ -31,10 +31,10 @@ public class UsuariosController : ControllerBase
         return usuario is null ? NotFound() : Ok(usuario);
     }
 
-    [HttpPut("{id:int}/rol")]
-    public async Task<IActionResult> CambiarRol(int id, [FromBody] ActualizarRolUsuarioDto dto)
+    [HttpPatch("{id:int}/rol")]
+    public async Task<IActionResult> CambiarRol(int id, [FromBody] CambiarRolRequestDto dto)
     {
-        await _usuarioAdminService.CambiarRolAsync(id, dto);
+        await _usuarioAdminService.CambiarRolUsuarioAsync(id, dto.Rol);
         return NoContent();
     }
 

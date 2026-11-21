@@ -18,7 +18,7 @@ if ($LASTEXITCODE -ne 0) { throw "Build falló." }
 
 if (-not $SkipTests) {
     Write-Host "==> Tests" -ForegroundColor Cyan
-    dotnet test (Join-Path $root 'ProyectoOdontologia.slnx')
+    dotnet test (Join-Path $root 'CapaPruebas\ProyectoOdontologia.Tests.csproj')
     if ($LASTEXITCODE -ne 0) { throw "Tests fallaron." }
 }
 

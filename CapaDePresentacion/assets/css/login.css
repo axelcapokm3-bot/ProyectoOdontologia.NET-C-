@@ -792,3 +792,78 @@
     font-size: 28px;
   }
 }
+
+/* ============================================================
+   Profundidad 3D — página de acceso
+   ============================================================ */
+
+.auth-shell {
+  transform-style: preserve-3d;
+  perspective: var(--perspective-card);
+}
+
+.auth-shell::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: var(--specular-gradient);
+  opacity: 0;
+  transition: opacity var(--dur-fast) ease;
+}
+
+.auth-shell:hover::after {
+  opacity: 1;
+}
+
+.auth-panel {
+  transform-style: preserve-3d;
+}
+
+.auth-panel-inner {
+  transform: translateZ(24px);
+}
+
+.auth-panel-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0) 45%,
+    rgba(15, 143, 165, 0.08) 100%
+  );
+  opacity: 0;
+  transition: opacity var(--dur-fast) ease;
+}
+
+.auth-panel-inner:hover::before {
+  opacity: 1;
+}
+
+.auth-submit {
+  transform: translateZ(16px);
+}
+
+.auth-logo {
+  transform: translateZ(20px);
+}
+
+.orbit-core {
+  transform-style: preserve-3d;
+}
+
+.orbit-chip {
+  transform: translateZ(12px);
+}
+
+/* Estado de salida con transición de vista */
+.auth-page.is-leaving .auth-shell {
+  animation: shellOut var(--dur-fast) ease both;
+}

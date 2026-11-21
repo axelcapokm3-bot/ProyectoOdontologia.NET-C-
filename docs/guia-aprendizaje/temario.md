@@ -3060,6 +3060,11 @@ erDiagram
         INTEGER PacienteId
         INTEGER OdontologoId
         INTEGER TratamientoId FK
+
+
+
+
+
         INTEGER Estado
     }
 

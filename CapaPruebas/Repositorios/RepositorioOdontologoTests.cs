@@ -169,7 +169,7 @@ public class RepositorioOdontologoTests
         // Arrange
         RepositorioOdontologo repositorio = new RepositorioOdontologo();
         await repositorio.AgregarOdontologo(EntidadesFactory.CrearOdontologo(id: 1));
-        Odontologo odontologoEditado = new Odontologo(1, "Dr. Carlos Ruiz", "MAT-5678", "Endodoncia", 35156789);
+        Odontologo odontologoEditado = new Odontologo(1, "Dr. Carlos Ruiz", "MAT-5678", "Endodoncia", "35156789");
 
         // Act
         await repositorio.ActualizarOdontologo(odontologoEditado);

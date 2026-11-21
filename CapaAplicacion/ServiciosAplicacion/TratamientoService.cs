@@ -253,16 +253,6 @@ public class TratamientoService : ITratamientoService
                 throw new InsumoNoEncontradoException(item.InsumoId);
             }
 
-            int stockDisponible = insumo.StockDisponible();
-
-            if (stockDisponible < item.CantidadUsada)
-            {
-                throw new StockInsuficienteException(
-                    item.InsumoId,
-                    item.CantidadUsada,
-                    stockDisponible);
-            }
-
             relaciones.Add(new TratamientoInsumo(tratamientoId, item.InsumoId, item.CantidadUsada));
         }
 

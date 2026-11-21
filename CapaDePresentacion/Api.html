@@ -61,6 +61,10 @@
         <span class="nav-label">Insumos</span>
         <span class="nav-count" id="insumosAlert" hidden>0</span>
       </button>
+      <button class="nav-link admin-only" data-seccion="usuarios" type="button">
+        <span class="material-symbols-outlined" aria-hidden="true">people</span>
+        <span class="nav-label">Usuarios</span>
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -483,6 +487,69 @@
         </div>
       </div>
     </section>
+
+    <!-- Usuarios (Solo Admin) -->
+    <section id="sec-usuarios" class="seccion-modulo hidden admin-only" aria-labelledby="usuarios-title">
+      <header class="modulo-header">
+        <div class="modulo-title">
+          <p class="eyebrow">Administración</p>
+          <h2 id="usuarios-title">Usuarios del sistema</h2>
+          <p class="modulo-sub">Gestión de cuentas y roles de acceso.</p>
+        </div>
+      </header>
+
+      <div class="table-container">
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre de usuario</th>
+                <th>Correo electrónico</th>
+                <th>Rol actual</th>
+                <th class="text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-usuarios"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Paciente: Solicitar Turno y Mis Turnos -->
+    <section id="sec-turnos-paciente" class="seccion-modulo hidden" aria-labelledby="turnos-paciente-title">
+      <header class="modulo-header">
+        <div class="modulo-title">
+          <p class="eyebrow">Mi cuenta de paciente</p>
+          <h2 id="turnos-paciente-title">Mis Turnos</h2>
+          <p class="modulo-sub">Gestione sus turnos desde el portal del paciente.</p>
+        </div>
+        <div class="modulo-actions">
+          <button class="button button-primary" id="btnNuevoTurnoPaciente" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            <span>Solicitar turno</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="table-container">
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Fecha y hora</th>
+                <th>Odontólogo</th>
+                <th>Tratamiento</th>
+                <th class="text-center">Estado</th>
+                <th class="text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-mis-turnos"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- Modal CRUD -->
@@ -583,6 +650,46 @@
       <button class="button button-ghost" id="confirmCancel" type="button">Cancelar</button>
       <button class="button button-primary" id="confirmOk" type="button">Confirmar</button>
     </div>
+  </dialog>
+
+  <!-- Modal: Solicitar Turno (Paciente) -->
+  <dialog id="modalSolicitarTurno" class="modal-dialog" aria-labelledby="solicitarTurnoTitle">
+    <form id="formSolicitarTurno" novalidate>
+      <div class="modal-header">
+        <div class="modal-heading">
+          <p class="modal-eyebrow">Solicitar turno</p>
+          <h3 id="solicitarTurnoTitle">Nuevo turno</h3>
+          <p class="text-muted">Seleccione el profesional, el tratamiento y la fecha y hora deseada.</p>
+        </div>
+        <button class="icon-button modal-close" type="button" aria-label="Cerrar">
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <label class="field-label">
+            Odontólogo
+            <select id="selectOdontologoTurno" class="form-select" required>
+              <option value="">Seleccionar odontólogo…</option>
+            </select>
+          </label>
+          <label class="field-label">
+            Tratamiento
+            <select id="selectTratamientoTurno" class="form-select" required>
+              <option value="">Seleccionar tratamiento…</option>
+            </select>
+          </label>
+          <label class="field-label">
+            Fecha y hora
+            <input type="datetime-local" id="inputFechaHoraTurno" class="form-input" required />
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="button button-ghost" type="button" id="modalSolicitarTurnoCancel">Cancelar</button>
+        <button class="button button-primary" type="submit">Solicitar turno</button>
+      </div>
+    </form>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

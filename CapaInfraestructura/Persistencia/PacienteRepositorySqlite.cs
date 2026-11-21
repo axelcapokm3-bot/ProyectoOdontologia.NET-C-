@@ -210,6 +210,26 @@ FROM Pacientes;";
             transaction: _unitOfWork.Transaction);
     }
 
+    public async Task<Paciente?> ObtenerPacientePorUsuarioIdAsync(int usuarioId)
+    {
+        const string sql = @"
+SELECT Id, UsuarioId, Nombre, Apellido, FechaNacimiento, Telefono, Email
+FROM Pacientes
+WHERE UsuarioId = @UsuarioId
+LIMIT 1;";
+
+        PacienteRow? fila = await _unitOfWork.Connection.QuerySingleOrDefaultAsync<PacienteRow>(
+            new CommandDefinition(
+                sql,
+                new { UsuarioId = usuarioId },
+                _unitOfWork.Transaction));
+
+        if (fila == null)
+            return null;
+
+        return Convertir(fila);
+    }
+
     private static Paciente Convertir(PacienteRow fila)
     {
         int id = checked((int)fila.Id);

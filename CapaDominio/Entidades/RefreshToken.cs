@@ -9,6 +9,11 @@ public class RefreshToken
     public int UsuarioId { get; private set; }
 
     public RefreshToken(string token, DateTime expiracionUtc, int usuarioId)
+        : this(token, expiracionUtc, usuarioId, usado: false, revocado: false)
+    {
+    }
+
+    public RefreshToken(string token, DateTime expiracionUtc, int usuarioId, bool usado, bool revocado)
     {
         if (string.IsNullOrWhiteSpace(token)) throw new ArgumentException("El token es obligatorio.");
         if (usuarioId <= 0) throw new ArgumentException("El usuario es inválido.");
@@ -16,6 +21,8 @@ public class RefreshToken
         Token = token;
         ExpiracionUtc = expiracionUtc;
         UsuarioId = usuarioId;
+        Usado = usado;
+        Revocado = revocado;
     }
 
     public bool EstaActivo => !Revocado && !Usado && ExpiracionUtc > DateTime.UtcNow;

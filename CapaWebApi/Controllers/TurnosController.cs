@@ -3,12 +3,13 @@ using Microsoft.AspNetCore.Authorization;
 using CapaAplicacion.Interfaces;
 using ProyectoOdontologia.CapaAplicacion.DtosInput;
 using ProyectoOdontologia.CapaAplicacion.DtosOutput;
+using System.Security.Claims;
+using System.Threading;
 
 namespace CapaWebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin,Odontologo,Recepcionista")]
     public class TurnosController : ControllerBase
     {
         private readonly ITurnosService _turnosService;
@@ -18,28 +19,44 @@ namespace CapaWebApi.Controllers
             _turnosService = turnosService;
         }
 
+        private int ObtenerUsuarioIdDelToken()
+        {
+            string? valor = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(valor))
+            {
+                throw new UnauthorizedAccessException("No se pudo identificar al usuario autenticado.");
+            }
+
+            return int.Parse(valor);
+        }
+
         [HttpGet]
+        [Authorize(Roles = "Admin,Odontologo,Recepcionista")]
         public async Task<ActionResult<IEnumerable<TurnoDtoOutput>>> ObtenerTodos()
         {
             var lista = await _turnosService.ObtenerTodosLosTurnosAsync();
             return Ok(lista);
         }
 
+        [HttpGet("mis-turnos")]
+        [Authorize(Roles = "Paciente")]
+        public async Task<ActionResult<IEnumerable<TurnoDtoOutput>>> ObtenerMisTurnos()
+        {
+            int usuarioId = ObtenerUsuarioIdDelToken();
+            var turnos = await _turnosService.ObtenerTurnosDelPacienteAsync(usuarioId);
+            return Ok(turnos);
+        }
+
         [HttpGet("{id:int}")]
+        [Authorize(Roles = "Admin,Odontologo,Recepcionista,Paciente")]
         public async Task<ActionResult<TurnoDtoOutput>> ObtenerPorId(int id)
         {
-            try
-            {
-                var dto = await _turnosService.ObtenerTurnoPorIdAsync(id);
-                return Ok(dto);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            var dto = await _turnosService.ObtenerTurnoPorIdAsync(id);
+            return Ok(dto);
         }
 
         [HttpGet("buscar")]
+        [Authorize(Roles = "Admin,Odontologo,Recepcionista")]
         public async Task<ActionResult<List<TurnoDtoOutput>>> Buscar([FromQuery] string texto)
         {
             var resultados = await _turnosService.BuscarTurnosAsync(texto);
@@ -47,77 +64,62 @@ namespace CapaWebApi.Controllers
         }
 
         [HttpGet("huecos")]
+        [Authorize(Roles = "Admin,Odontologo,Recepcionista,Paciente")]
         public async Task<ActionResult<List<IntervaloTiempoDto>>> ConsultarHuecos(
             [FromQuery] int odontologoId,
             [FromQuery] DateTime fecha,
             [FromQuery] int duracionMinutos,
             CancellationToken cancellationToken)
         {
-            try
+            var request = new ConsultarHuecosRequestDto
             {
-                var request = new ConsultarHuecosRequestDto
-                {
-                    OdontologoId = odontologoId,
-                    Fecha = fecha,
-                    DuracionMinutos = duracionMinutos
-                };
+                OdontologoId = odontologoId,
+                Fecha = fecha,
+                DuracionMinutos = duracionMinutos
+            };
 
-                var huecos = await _turnosService.ConsultarHuecosDisponiblesAsync(request, cancellationToken);
-                return Ok(huecos);
-            }
-            catch (ArgumentOutOfRangeException ex)
-            {
-                return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Parámetros inválidos", Detail = ex.Message });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Parámetros inválidos", Detail = ex.Message });
-            }
+            var huecos = await _turnosService.ConsultarHuecosDisponiblesAsync(request, cancellationToken);
+            return Ok(huecos);
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Odontologo,Recepcionista,Paciente")]
         public async Task<ActionResult<int>> Guardar([FromBody] CrearTurnoRequestDto turno, CancellationToken cancellationToken)
         {
             if (turno == null) return BadRequest();
 
-            try
+            string? rolUsuario = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            if (rolUsuario != null && rolUsuario.Equals("Paciente", System.StringComparison.OrdinalIgnoreCase))
             {
-                int id = await _turnosService.RegistrarTurnoAsync(turno, cancellationToken);
+                int usuarioId = ObtenerUsuarioIdDelToken();
+                int id = await _turnosService.RegistrarTurnoParaPacienteAsync(turno, usuarioId, cancellationToken);
                 return StatusCode(StatusCodes.Status201Created, id);
             }
-            catch (InvalidOperationException ex)
-            {
-                return Conflict(new ProblemDetails { Status = StatusCodes.Status409Conflict, Title = "Conflicto de agenda", Detail = ex.Message });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Datos inválidos", Detail = ex.Message });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new ProblemDetails { Status = StatusCodes.Status404NotFound, Title = "Recurso no encontrado", Detail = ex.Message });
-            }
+
+            int idTurno = await _turnosService.RegistrarTurnoAsync(turno, cancellationToken);
+            return StatusCode(StatusCodes.Status201Created, idTurno);
         }
 
         [HttpPatch("{id:int}/cancelar")]
+        [Authorize(Roles = "Admin,Odontologo,Recepcionista,Paciente")]
         public async Task<IActionResult> Cancelar(int id, CancellationToken cancellationToken)
         {
-            try
+            string? rolUsuario = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            if (rolUsuario != null && rolUsuario.Equals("Paciente", System.StringComparison.OrdinalIgnoreCase))
             {
-                await _turnosService.CancelarTurnoAsync(id, cancellationToken);
+                int usuarioId = ObtenerUsuarioIdDelToken();
+                await _turnosService.CancelarTurnoDelPacienteAsync(id, usuarioId, cancellationToken);
                 return NoContent();
             }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Conflict(new ProblemDetails { Status = StatusCodes.Status409Conflict, Title = "Conflicto de estado", Detail = ex.Message });
-            }
+
+            await _turnosService.CancelarTurnoAsync(id, cancellationToken);
+            return NoContent();
         }
 
         [HttpPatch("{id:int}/completar")]
+        [Authorize(Roles = "Admin,Odontologo,Recepcionista")]
         public async Task<IActionResult> Completar(int id, CancellationToken cancellationToken)
         {
             await _turnosService.CompletarTurnoAsync(id, cancellationToken);
@@ -125,21 +127,16 @@ namespace CapaWebApi.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Roles = "Admin,Odontologo,Recepcionista")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] TurnoDtoInput turno)
         {
             if (turno == null) return BadRequest();
-            try
-            {
-                await _turnosService.ActualizarTurnoAsync(id, turno);
-                return NoContent();
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            await _turnosService.ActualizarTurnoAsync(id, turno);
+            return NoContent();
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Eliminar(int id)
         {
             var eliminado = await _turnosService.EliminarTurnoAsync(id);

@@ -2,7 +2,6 @@ using CapaAplicacion.Interfaces;
 using CapaAplicacion.Seguridad.Interfaces;
 using CapaAplicacion.Seguridad.Servicios;
 using ProyectoOdontologia.CapaAplicacion.ServiciosAplicacion;
-using CapaInfraestructura.Implementacion;
 using CapaInfraestructura.Persistencia;
 using CapaInfraestructura.Servicios;
 using CapaWebApi.Middlewares;
@@ -12,7 +11,7 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<IRepositorioUsuario, RepositorioUsuario>();
+builder.Services.AddScoped<IRepositorioUsuario, UsuarioRepositorySqlite>();
 
 string connectionString = builder.Configuration.GetConnectionString("ClinicaDb")
     ?? "Data Source=clinica.db;Foreign Keys=True";
@@ -24,8 +23,6 @@ builder.Services.AddScoped<IRepositorioTratamiento, TratamientoRepositorySqlite>
 builder.Services.AddScoped<IRepositorioTurnos, TurnoRepositorySqlite>();
 builder.Services.AddScoped<IRepositorioPaciente, PacienteRepositorySqlite>();
 builder.Services.AddScoped<IRepositorioOdontologo, OdontologoRepositorySqlite>();
-
-
 builder.Services.AddScoped<IPacienteService, PacienteService>();
 builder.Services.AddScoped<IOdontologoService, OdontologoService>();
 builder.Services.AddScoped<IInsumosService, InsumosService>();
@@ -75,7 +72,9 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     IDbConnectionFactory connectionFactory = scope.ServiceProvider.GetRequiredService<IDbConnectionFactory>();
-    await DatabaseInitializer.InicializarAsync(connectionFactory);
+    await DatabaseInitializer.InicializarAsync(
+        connectionFactory,
+        passwordAdmin: builder.Configuration["Seed:AdminPassword"]);
 }
 
 if (app.Environment.IsDevelopment())

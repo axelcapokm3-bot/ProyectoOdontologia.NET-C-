@@ -1,3 +1,5 @@
+using CapaDominio.Excepciones;
+
 namespace CapaDominio.Entidades;
 
 public enum RolUsuario
@@ -32,6 +34,25 @@ public class Usuario
         PasswordHash = passwordHash;
         Rol = rol;
         EstaActivo = estaActivo;
+    }
+
+    public static Usuario CrearParaRegistroPublico(int id, string nombreUsuario, string email, string passwordHash)
+    {
+        return new Usuario(id, nombreUsuario, email, passwordHash, RolUsuario.Paciente, estaActivo: true);
+    }
+
+    public void AsignarRol(RolUsuario nuevoRol)
+    {
+        if (!Enum.IsDefined(typeof(RolUsuario), nuevoRol))
+            throw new ArgumentException("El rol especificado no es válido.");
+
+        if (Rol == RolUsuario.Admin)
+            throw new DomainException("No se puede modificar el rol del administrador principal del sistema.");
+
+        if (Rol == nuevoRol)
+            throw new DomainException("El usuario ya tiene asignado ese rol.");
+
+        Rol = nuevoRol;
     }
 
     public void CambiarPasswordHash(string passwordHash)

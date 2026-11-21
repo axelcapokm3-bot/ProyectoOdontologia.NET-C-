@@ -124,17 +124,24 @@ public class InsumosService : IInsumosService
 
     public bool ValidadorNombre(InsumoDtosInput insumo)
     {
-        if (string.IsNullOrWhiteSpace(insumo.Nombre))
+        if (insumo == null || string.IsNullOrWhiteSpace(insumo.Nombre))
         {
             return false;
         }
 
         foreach (char caracter in insumo.Nombre)
         {
-            if (!char.IsLetter(caracter) && !char.IsWhiteSpace(caracter))
+            if (char.IsLetterOrDigit(caracter) || char.IsWhiteSpace(caracter))
             {
-                return false;
+                continue;
             }
+
+            if (caracter == '-' || caracter == '(' || caracter == ')' || caracter == '.' || caracter == '/' || caracter == '%')
+            {
+                continue;
+            }
+
+            return false;
         }
 
         return true;

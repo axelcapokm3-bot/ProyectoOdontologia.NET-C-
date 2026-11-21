@@ -37,7 +37,7 @@ public class OdontologoServiceTests
 
     private static OdontologoInputDto CrearDto()
     {
-        return new OdontologoInputDto(0, "Ana Gomez", "MP-1234", "Ortodoncia", 351555123);
+        return new OdontologoInputDto(0, "Ana Gomez", "MP-1234", "Ortodoncia", "351555123");
     }
 
     [Fact]
@@ -81,12 +81,12 @@ public class OdontologoServiceTests
         // Arrange
         _mockOdontologos
             .Setup(r => r.ObtenerOdontologoPorId(1))
-            .ReturnsAsync(new Odontologo(1, "Ana Gomez", "MP-1234", "Ortodoncia", 351555123));
+            .ReturnsAsync(new Odontologo(1, "Ana Gomez", "MP-1234", "Ortodoncia", "351555123"));
 
         // Act
         await _servicio.ActualizarOdontologoAsync(
             1,
-            new OdontologoInputDto(1, "Ana Perez", "MP-1234", "Ortodoncia", 351555123));
+            new OdontologoInputDto(1, "Ana Perez", "MP-1234", "Ortodoncia", "351555123"));
 
         // Assert
         _mockOdontologos.Verify(

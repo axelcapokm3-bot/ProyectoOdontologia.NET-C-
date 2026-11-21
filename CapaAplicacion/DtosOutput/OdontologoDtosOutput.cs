@@ -5,5 +5,5 @@ public record OdontologoOutputDto(
     string Nombre,
     string Matricula,
     string Especialidad,
-    int Telefono
+    string Telefono
 );

@@ -2229,3 +2229,206 @@ body.rol-recepcion .insights-grid {
     transform: scaleX(0.12) translateX(760%);
   }
 }
+
+/* ============================================================
+   Elevación 3D — tarjetas interactivas (tilt + specular)
+   Se aplica sobre las clases existentes sin alterar su lógica.
+   ============================================================ */
+
+/* Tarjeta base con profundidad 3D */
+.tilt-card {
+  position: relative;
+  transform-style: preserve-3d;
+  perspective: var(--perspective-card);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--surface-0);
+  box-shadow: var(--shadow-card);
+  transition:
+    border-color var(--dur) ease,
+    box-shadow var(--dur) ease;
+}
+
+.tilt-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(15, 143, 165, 0.06) 100%
+  );
+  opacity: 0;
+  transition: opacity var(--dur-fast) ease;
+}
+
+.tilt-card .tilt-layer,
+.tilt-card .specular {
+  border-radius: inherit;
+}
+
+/* Hover: elevación + brillo especular */
+.tilt-card:hover {
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.tilt-card:hover::before {
+  opacity: 1;
+}
+
+/* Aplica 3D a las tarjetas de métrica existentes */
+.metric-card {
+  transform-style: preserve-3d;
+}
+.metric-card .metric-icon {
+  transform: translateZ(16px);
+}
+
+/* Aplica 3D a los paneles de insight existentes */
+.panel {
+  transform-style: preserve-3d;
+  perspective: var(--perspective-card);
+}
+
+/* Tabla como contenedor con elevación */
+.table-container {
+  transform-style: preserve-3d;
+}
+
+/* ---------- Container Queries (adaptación quirúrgica sin media queries frágiles) ---------- */
+
+@container card (min-width: 320px) {
+  .metric-card {
+    padding: 18px;
+  }
+  .metric-value {
+    font-size: var(--fs-value);
+  }
+}
+
+@container metrics (min-width: 200px) {
+  .metrics-grid {
+    gap: 14px;
+  }
+}
+
+@container table-panel (min-width: 420px) {
+  .table-container {
+    border-radius: var(--radius-xl);
+  }
+}
+
+/* Contenedores con contenedor-query implicito */
+.metrics-grid {
+  container-type: inline-size;
+  container-name: metrics;
+}
+.table-container {
+  container-type: inline-size;
+  container-name: table-panel;
+}
+
+/* ---------- View Transitions API — secciones del panel ---------- */
+
+.seccion-modulo {
+  view-transition-name: section;
+  isolation: isolate;
+}
+
+/* ---------- popover — menús contextuales y notificaciones ---------- */
+
+popover {
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--surface-0);
+  box-shadow: var(--shadow-lift);
+  padding: 0;
+  color: var(--ink-900);
+  font-size: var(--fs-label);
+}
+popover::backdrop {
+  background: rgba(3, 35, 44, 0.3);
+  backdrop-filter: blur(4px);
+}
+:popover-open {
+  animation: popoverIn var(--dur) var(--ease-out) both;
+}
+@keyframes popoverIn {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Utilidades de profundidad táctil ---------- */
+
+.elev-1 { box-shadow: var(--shadow-contact); }
+.elev-2 { box-shadow: var(--shadow-card); }
+.elev-3 { box-shadow: var(--shadow-card-hover); }
+
+.glass {
+  background: var(--surface-glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.border-glow-brand {
+  position: relative;
+}
+.border-glow-brand::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--brand-500), var(--emerald-500));
+  -webkit-mask:
+    linear-gradient(#fff 0 0) padding-box,
+    linear-gradient(#fff 0 0) border-box;
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ---------- Reveal escalonado al renderizar listas ---------- */
+
+.reveal-grid {
+  display: grid;
+}
+.reveal-grid > * {
+  animation: revealUp var(--dur-slow) var(--ease-out) forwards;
+  opacity: 0;
+}
+.reveal-grid > *:nth-child(1) { animation-delay: 40ms; }
+.reveal-grid > *:nth-child(2) { animation-delay: 80ms; }
+.reveal-grid > *:nth-child(3) { animation-delay: 120ms; }
+.reveal-grid > *:nth-child(4) { animation-delay: 160ms; }
+.reveal-grid > *:nth-child(5) { animation-delay: 200ms; }
+
+/* Estados de carga en tablas — CLS = 0 (dimensiones reservadas) */
+.skeleton-row td {
+  min-height: 56px;
+}
+
+/* ---------- Modal sheet (móvil) y dialog mejorados ---------- */
+
+.modal-dialog[open] {
+  animation: modalIn var(--dur) var(--ease-out) both;
+}
+
+.modal-dialog::backdrop {
+  background: rgba(3, 35, 44, 0.52);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: backdropIn var(--dur) ease both;
+}
+
+/* ---------- Ajustes de rol recepción (contenedor-consiente) ---------- */
+
+body.rol-recepcion .metrics-grid {
+  container-type: inline-size;
+}

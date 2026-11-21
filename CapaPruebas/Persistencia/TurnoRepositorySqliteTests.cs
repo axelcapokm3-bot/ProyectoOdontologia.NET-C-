@@ -31,10 +31,10 @@ public class TurnoRepositorySqliteTests
     private static async Task CrearOdontologosAsync(OdontologoRepositorySqlite repositorio)
     {
         await repositorio.AgregarOdontologo(
-            new Odontologo(1, "Odontologo Uno", "MAT-1111", "Odontologia General", 55500011));
+            new Odontologo(1, "Odontologo Uno", "MAT-1111", "Odontologia General", "55500011"));
 
         await repositorio.AgregarOdontologo(
-            new Odontologo(2, "Odontologo Dos", "MAT-2222", "Odontologia General", 55500022));
+            new Odontologo(2, "Odontologo Dos", "MAT-2222", "Odontologia General", "55500022"));
     }
 
     [Fact]

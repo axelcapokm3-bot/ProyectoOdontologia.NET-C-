@@ -10,7 +10,7 @@ using CapaDominio.Entidades;
 /// </summary>
 public static class EntidadesFactory
 {
-    private const int TelefonoOdontologo = 35123456;
+    private const string TelefonoOdontologo = "35123456";
 
     public static Insumo CrearInsumo(int id = 1, string nombre = "Anestesia Lidocaina", int stock = 500, CategoriaInsumo categoria = CategoriaInsumo.Anestesia)
     {

@@ -8,7 +8,7 @@ public record OdontologoInputDto
     {
     }
 
-    public OdontologoInputDto(int id, string nombre, string matricula, string especialidad, int telefono)
+    public OdontologoInputDto(int id, string nombre, string matricula, string especialidad, string telefono)
         : this()
     {
         Id = id;
@@ -18,7 +18,7 @@ public record OdontologoInputDto
         Telefono = telefono;
     }
 
-    public OdontologoInputDto(int id, string nombre, string matricula, string especialidad, int telefono, int? usuarioId)
+    public OdontologoInputDto(int id, string nombre, string matricula, string especialidad, string telefono, int? usuarioId)
         : this(id, nombre, matricula, especialidad, telefono)
     {
         UsuarioId = usuarioId;
@@ -40,8 +40,8 @@ public record OdontologoInputDto
     public string Especialidad { get; init; } = string.Empty;
 
     [Required(ErrorMessage = "El telefono es obligatorio.")]
-    [Range(1, int.MaxValue, ErrorMessage = "El telefono debe ser un valor numerico valido.")]
-    public int Telefono { get; init; } = default;
+    [StringLength(10, MinimumLength = 8, ErrorMessage = "El telefono debe tener entre 8 y 10 dígitos.")]
+    public string Telefono { get; init; } = string.Empty;
 
     public int? UsuarioId { get; init; } = null;
     public string? NombreUsuario { get; init; } = null;

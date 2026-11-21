@@ -1,6 +1,7 @@
 using CapaAplicacion.Interfaces;
 using CapaAplicacion.Seguridad.Interfaces;
 using CapaDominio.Entidades;
+using CapaDominio.Excepciones;
 using ProyectoOdontologia.CapaAplicacion.DtosInput;
 using ProyectoOdontologia.CapaAplicacion.DtosOutput;
 
@@ -18,7 +19,19 @@ public class UsuarioAdminService : IUsuarioAdminService
     public async Task<IReadOnlyCollection<UsuarioDtoOutput>> ObtenerTodosAsync()
     {
         var usuarios = await _repositorioUsuario.ObtenerTodosAsync();
-        return usuarios.Select(Mapear).ToList();
+        List<UsuarioDtoOutput> resultado = new List<UsuarioDtoOutput>();
+
+        foreach (Usuario usuario in usuarios)
+        {
+            resultado.Add(Mapear(usuario));
+        }
+
+        return resultado;
+    }
+
+    public async Task<IReadOnlyCollection<UsuarioDtoOutput>> ListarUsuariosAsync()
+    {
+        return await ObtenerTodosAsync();
     }
 
     public async Task<UsuarioDtoOutput?> ObtenerPorIdAsync(int id)
@@ -30,6 +43,18 @@ public class UsuarioAdminService : IUsuarioAdminService
     public Task CambiarRolAsync(int id, ActualizarRolUsuarioDto dto)
     {
         return _repositorioUsuario.CambiarRolAsync(id, dto.Rol);
+    }
+
+    public async Task CambiarRolUsuarioAsync(int usuarioId, RolUsuario nuevoRol)
+    {
+        Usuario? usuario = await _repositorioUsuario.ObtenerPorIdAsync(usuarioId);
+
+        if (usuario is null)
+            throw new KeyNotFoundException($"No se encontro un usuario con el ID {usuarioId}.");
+
+        usuario.AsignarRol(nuevoRol);
+
+        await _repositorioUsuario.ActualizarAsync(usuario);
     }
 
     public Task CambiarEstadoAsync(int id, bool estaActivo)

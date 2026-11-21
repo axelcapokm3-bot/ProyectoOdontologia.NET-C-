@@ -22,4 +22,6 @@ public interface IRepositorioPaciente
   Task<bool> EliminarPaciente(int id);
 
   int IdAutoIncrementoSincrono();
+
+  Task<Paciente?> ObtenerPacientePorUsuarioIdAsync(int usuarioId);
 }

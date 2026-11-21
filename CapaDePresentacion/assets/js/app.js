@@ -107,6 +107,30 @@ const entities = {
       <td class="text-right hide-md text-muted">${esc(i.puntoPedido)} uds</td>
       <td class="text-center">${badgeHtml(estado.text, estado.type)}</td>`;
     }
+  },
+  usuarios: {
+    title: "Usuarios",
+    singular: "usuario",
+    endpoint: "usuarios",
+    description: "Gestión de cuentas y roles de acceso del sistema.",
+    fields: [],
+    row: (u) => `
+      <td class="font-mono">#${u.id}</td>
+      <td class="font-semibold">${esc(u.nombreUsuario)}</td>
+      <td class="hide-sm">${esc(u.email)}</td>
+      <td>
+        <select class="form-select rol-select" data-usuario-id="${u.id}">
+          <option value="Paciente" ${u.rol === "Paciente" ? "selected" : ""}>Paciente</option>
+          <option value="Odontologo" ${u.rol === "Odontologo" ? "selected" : ""}>Odontólogo</option>
+          <option value="Recepcionista" ${u.rol === "Recepcionista" ? "selected" : ""}>Recepcionista</option>
+          <option value="Admin" ${u.rol === "Admin" ? "selected" : ""}>Administrador</option>
+        </select>
+      </td>
+      <td class="text-right">
+        <button class="icon-button button-confirmar-rol" data-usuario-id="${u.id}" title="Confirmar rol">
+          <span class="material-symbols-outlined" aria-hidden="true">done</span>
+        </button>
+      </td>`
   }
 };
 
@@ -116,12 +140,34 @@ const state = {
   search: { pacientes: null, odontologos: null, tratamientos: null, turnos: null, insumos: null },
   page: { pacientes: 1, odontologos: 1, tratamientos: 1, turnos: 1, insumos: 1 },
   editing: null,
-  tiList: []
+  tiList: [],
+  turnosPaciente: [],
+  odontologosParaTurno: [],
+  tratamientosParaTurno: []
 };
 
 const $ = (selector) => document.querySelector(selector);
 const pad = (n) => String(n).padStart(2, "0");
 const debounce = (fn, wait) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); }; };
+
+async function ejecutarConBloqueo(boton, textoProcesando, accionAsync) {
+    if (!boton || boton.disabled || boton.dataset.enCurso === "true") {
+        return;
+    }
+    const textoOriginal = boton.textContent;
+    boton.dataset.enCurso = "true";
+    boton.disabled = true;
+    if (textoProcesando) {
+        boton.textContent = textoProcesando;
+    }
+    try {
+        await accionAsync();
+    } finally {
+        boton.dataset.enCurso = "false";
+        boton.disabled = false;
+        boton.textContent = textoOriginal;
+    }
+}
 
 const ROLE_LABELS = { Admin: "Administrador", Odontologo: "Odontólogo", Recepcionista: "Recepcionista", Paciente: "Paciente" };
 
@@ -134,19 +180,43 @@ function readSession() {
 }
 
 const session = readSession();
-const rol = session?.rol || "";
-const rolesConPanel = new Set(["Admin", "Odontologo", "Recepcionista"]);
+const rolDesdeToken = decodificarRolDelToken();
+const rol = rolDesdeToken || session?.rol || "";
+const rolesConPanel = new Set(["Admin", "Odontologo", "Recepcionista", "Paciente"]);
 const tieneAccesoPanel = rolesConPanel.has(rol);
 const esRecepcionista = rol === "Recepcionista";
+const esPaciente = rol === "Paciente";
 const puede = {
-  odontologos: !esRecepcionista,
-  insumos: !esRecepcionista,
-  completarTurnos: !esRecepcionista
+  odontologos: !esRecepcionista && !esPaciente,
+  insumos: !esRecepcionista && !esPaciente,
+  completarTurnos: !esRecepcionista && !esPaciente,
+  gestionarUsuarios: rol === "Admin"
 };
 
 /* ---------- Helpers de formato ---------- */
 function esc(value) {
   return String(value ?? "").replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#039;", '"': "&quot;" })[c]);
+}
+
+function decodificarRolDelToken() {
+  try {
+    const token = localStorage.getItem(APP_CONFIG.tokenKey);
+    if (!token) return null;
+    const partes = token.split(".");
+    if (partes.length < 2) return null;
+    const payloadBase64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payloadJson = decodeURIComponent(
+      atob(payloadBase64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    const payload = JSON.parse(payloadJson);
+    const rolClaim = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
+    return rolClaim || null;
+  } catch (_) {
+    return null;
+  }
 }
 function formatCurrency(value) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(value || 0);
@@ -247,8 +317,63 @@ function insumosRequeridosChips(t) {
   }).join(" ");
 }
 
+/* ---------- Efecto de inclinación 3D (tilt) con requestAnimationFrame ---------- */
+
+const TILT_ROTATE = 4; // grados máximo
+const TILT_SCALE = 1.02;
+
+function initTilt() {
+  const selectors = [".metric-card", ".panel", ".table-container"];
+  const cards = [];
+  selectors.forEach((sel) => {
+    document.querySelectorAll(sel).forEach((el) => cards.push(el));
+  });
+
+  cards.forEach((card) => {
+    let rafId = null;
+    let sx = 0;
+    let sy = 0;
+
+    const handleMove = (event) => {
+      const rect = card.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const pctX = (x - centerX) / centerX;
+      const pctY = (y - centerY) / centerY;
+
+      sx += (pctX - sx) * 0.18;
+      sy += (pctY - sy) * 0.18;
+
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const rx = (sy * TILT_ROTATE).toFixed(2);
+        const ry = (sx * -TILT_ROTATE).toFixed(2);
+        card.style.transform = `perspective(${varCss("--perspective-card")}) rotateX(${rx}deg) rotateY(${ry}deg) scale(${TILT_SCALE})`;
+        card.style.boxShadow = "var(--shadow-card-hover)";
+      });
+    };
+
+    const handleLeave = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        card.style.transform = "none";
+        card.style.boxShadow = "var(--shadow-card)";
+      });
+    };
+
+    card.addEventListener("mousemove", handleMove, { passive: true });
+    card.addEventListener("mouseleave", handleLeave, { passive: true });
+  });
+}
+
+function varCss(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "1000px";
+}
+
 /* ---------- Navegación de secciones ---------- */
-const SECCIONES = ["dashboard", "pacientes", "odontologos", "tratamientos", "turnos", "insumos"];
+const SECCIONES = ["dashboard", "pacientes", "odontologos", "tratamientos", "turnos", "insumos", "usuarios"];
 const seccionesDisponibles = new Set(SECCIONES.filter((name) => {
   if (name === "odontologos" && !puede.odontologos) return false;
   if (name === "insumos" && !puede.insumos) return false;
@@ -257,16 +382,23 @@ const seccionesDisponibles = new Set(SECCIONES.filter((name) => {
 
 function mostrarSeccion(name, actualizarHash = true) {
   const destino = seccionesDisponibles.has(name) ? name : "dashboard";
-  document.querySelectorAll(".seccion-modulo").forEach((sec) => sec.classList.add("hidden"));
-  const target = document.getElementById(`sec-${destino}`);
-  if (target) target.classList.remove("hidden");
-  document.querySelectorAll("#entityNav .nav-link").forEach((b) => {
-    const activo = b.dataset.seccion === destino;
-    b.classList.toggle("active", activo);
-    if (activo) b.setAttribute("aria-current", "page");
-    else b.removeAttribute("aria-current");
-  });
-  if (actualizarHash) history.replaceState(null, "", `#${destino}`);
+  const cambiarVista = () => {
+    document.querySelectorAll(".seccion-modulo").forEach((sec) => sec.classList.add("hidden"));
+    const target = document.getElementById(`sec-${destino}`);
+    if (target) target.classList.remove("hidden");
+    document.querySelectorAll("#entityNav .nav-link").forEach((b) => {
+      const activo = b.dataset.seccion === destino;
+      b.classList.toggle("active", activo);
+      if (activo) b.setAttribute("aria-current", "page");
+      else b.removeAttribute("aria-current");
+    });
+    if (actualizarHash) history.replaceState(null, "", `#${destino}`);
+  };
+  if (document.startViewTransition) {
+    document.startViewTransition(cambiarVista);
+  } else {
+    cambiarVista();
+  }
 }
 
 function seccionDesdeHash() {
@@ -275,6 +407,8 @@ function seccionDesdeHash() {
 
 function aplicarPermisos() {
   if (esRecepcionista) document.body.classList.add("rol-recepcion");
+  if (esPaciente) document.body.classList.add("rol-paciente");
+
   if (!puede.odontologos) {
     document.querySelector('[data-seccion="odontologos"]')?.remove();
     document.getElementById("sec-odontologos")?.remove();
@@ -285,6 +419,33 @@ function aplicarPermisos() {
     document.getElementById("sec-insumos")?.remove();
     document.querySelector(".metric-card--stock")?.remove();
     document.getElementById("stockPanel")?.remove();
+  }
+  if (!puede.gestionarUsuarios) {
+    document.querySelector('[data-seccion="usuarios"]')?.remove();
+    document.getElementById("sec-usuarios")?.remove();
+  }
+  if (esRecepcionista) {
+    document.querySelector('[data-seccion="pacientes"]')?.remove();
+    document.getElementById("sec-pacientes")?.remove();
+    document.querySelector('[data-seccion="tratamientos"]')?.remove();
+    document.getElementById("sec-tratamientos")?.remove();
+  }
+  if (esPaciente) {
+    document.querySelector('[data-seccion="dashboard"]')?.remove();
+    document.getElementById("sec-dashboard")?.remove();
+    document.querySelector('[data-seccion="pacientes"]')?.remove();
+    document.getElementById("sec-pacientes")?.remove();
+    document.querySelector('[data-seccion="odontologos"]')?.remove();
+    document.getElementById("sec-odontologos")?.remove();
+    document.querySelector('[data-seccion="tratamientos"]')?.remove();
+    document.getElementById("sec-tratamientos")?.remove();
+    document.querySelector('[data-seccion="insumos"]')?.remove();
+    document.getElementById("sec-insumos")?.remove();
+    document.querySelector('[data-seccion="turnos"]')?.remove();
+    document.getElementById("sec-turnos")?.remove();
+    document.querySelector('[data-seccion="usuarios"]')?.remove();
+    document.getElementById("sec-usuarios")?.remove();
+    document.getElementById("sec-turnos-paciente")?.classList.remove("hidden");
   }
 }
 
@@ -859,6 +1020,8 @@ document.addEventListener("click", async (event) => {
       icon: "check_circle"
     });
     if (!confirmado) return;
+    if (complete.dataset.enCurso === "true") return;
+    complete.dataset.enCurso = "true";
     complete.disabled = true;
     try {
       await Api.patch(entities.turnos.endpoint, complete.dataset.id, "completar");
@@ -867,6 +1030,7 @@ document.addEventListener("click", async (event) => {
     } catch (error) {
       toast(error.message, "error");
     } finally {
+      complete.dataset.enCurso = "false";
       complete.disabled = false;
     }
     return;
@@ -881,6 +1045,8 @@ document.addEventListener("click", async (event) => {
       icon: "event_busy"
     });
     if (!confirmado) return;
+    if (cancel.dataset.enCurso === "true") return;
+    cancel.dataset.enCurso = "true";
     cancel.disabled = true;
     try {
       await Api.patch(entities.turnos.endpoint, cancel.dataset.id, "cancelar");
@@ -889,6 +1055,7 @@ document.addEventListener("click", async (event) => {
     } catch (error) {
       toast(error.message, "error");
     } finally {
+      cancel.dataset.enCurso = "false";
       cancel.disabled = false;
     }
     return;
@@ -904,6 +1071,8 @@ document.addEventListener("click", async (event) => {
       icon: "delete"
     });
     if (!confirmado) return;
+    if (del.dataset.enCurso === "true") return;
+    del.dataset.enCurso = "true";
     del.disabled = true;
     try {
       await Api.remove(entities[entity].endpoint, del.dataset.id);
@@ -912,6 +1081,7 @@ document.addEventListener("click", async (event) => {
     } catch (error) {
       toast(error.message, "error");
     } finally {
+      del.dataset.enCurso = "false";
       del.disabled = false;
     }
     return;
@@ -965,6 +1135,8 @@ $("#recordForm").addEventListener("submit", async (event) => {
   if (!event.currentTarget.reportValidity()) return;
 
   const submitButton = $("#submitButton");
+  if (submitButton.dataset.enCurso === "true") return;
+  submitButton.dataset.enCurso = "true";
   submitButton.disabled = true;
   submitButton.classList.add("is-loading");
   submitButton.setAttribute("aria-busy", "true");
@@ -979,6 +1151,7 @@ $("#recordForm").addEventListener("submit", async (event) => {
   } catch (error) {
     toast(error.message, "error");
   } finally {
+    submitButton.dataset.enCurso = "false";
     submitButton.disabled = false;
     submitButton.classList.remove("is-loading");
     submitButton.removeAttribute("aria-busy");
@@ -1005,10 +1178,14 @@ $("#settingsForm").addEventListener("submit", async (event) => {
   if (!input.reportValidity()) return;
   const url = input.value.trim().replace(/\/$/, "");
   if (!url) return;
-  localStorage.setItem(APP_CONFIG.storageKey, url);
-  $("#settingsDialog").close();
-  toast("Configuración guardada. Reconectando…");
-  await loadAll();
+
+  const submitButton = $("#settingsForm button[type='submit']");
+  await ejecutarConBloqueo(submitButton, "Guardando…", async () => {
+    localStorage.setItem(APP_CONFIG.storageKey, url);
+    $("#settingsDialog").close();
+    toast("Configuración guardada. Reconectando…");
+    await loadAll();
+  });
 });
 
 /* ---------- Navegación por hash ---------- */
@@ -1019,9 +1196,158 @@ window.addEventListener("hashchange", () => {
   if (destino !== valida) history.replaceState(null, "", `#${valida}`);
 });
 
-/* ---------- Inicialización ---------- */
+/* ---------- Vista Paciente ---------- */
+async function iniciarVistaPaciente() {
+  await cargarOdontologosParaTurno();
+  await cargarTratamientosParaTurno();
+  await cargarMisTurnos();
+  configurarEventosPaciente();
+}
+
+async function cargarOdontologosParaTurno() {
+  try {
+    state.odontologosParaTurno = await Api.list("Odontologo");
+  } catch (error) {
+    state.odontologosParaTurno = [];
+    toast("No se pudieron cargar los odontólogos.", "error");
+  }
+  renderSelectOdontologosTurno();
+}
+
+async function cargarTratamientosParaTurno() {
+  try {
+    state.tratamientosParaTurno = await Api.list("Tratamiento");
+  } catch (error) {
+    state.tratamientosParaTurno = [];
+    toast("No se pudieron cargar los tratamientos.", "error");
+  }
+  renderSelectTratamientosTurno();
+}
+
+async function cargarMisTurnos() {
+  try {
+    state.turnosPaciente = await Api.list("turnos/mis-turnos");
+  } catch (error) {
+    state.turnosPaciente = [];
+    toast("No se pudieron cargar sus turnos.", "error");
+  }
+  renderMisTurnos();
+}
+
+function renderSelectOdontologosTurno() {
+  const sel = $("#selectOdontologoTurno");
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Seleccionar odontólogo…</option>' +
+    state.odontologosParaTurno.map((o) => `<option value="${o.id}">${esc(o.nombre)}</option>`).join("");
+}
+
+function renderSelectTratamientosTurno() {
+  const sel = $("#selectTratamientoTurno");
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Seleccionar tratamiento…</option>' +
+    state.tratamientosParaTurno.map((t) => `<option value="${t.id}">${esc(t.descripcion)}</option>`).join("");
+}
+
+function renderMisTurnos() {
+  const tbody = $("#tbody-mis-turnos");
+  if (!tbody) return;
+  if (!state.turnosPaciente || state.turnosPaciente.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="loading-cell">No tiene turnos registrados.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = state.turnosPaciente.map((t) => {
+    const puedeCancelar = t.estado === "Pendiente" || t.estado === 1;
+    return `<tr>
+      <td>${esc(formatDateTime(t.fechaHoraInicio))}</td>
+      <td>${esc(nameById("odontologos", t.odontologoId))}</td>
+      <td>${esc(nameById("tratamientos", t.tratamientoId))}</td>
+      <td class="text-center">${badgeHtml(estadoTurno(t).text, estadoTurno(t).type)}</td>
+      <td class="text-right">
+        ${puedeCancelar ? `<button class="icon-button button-cancelar-mi-turno" data-turno-id="${t.id}" title="Cancelar turno"><span class="material-symbols-outlined" aria-hidden="true">cancel</span></button>` : ""}
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+function configurarEventosPaciente() {
+  const btnSolicitar = $("#btnNuevoTurnoPaciente");
+  if (btnSolicitar) {
+    btnSolicitar.addEventListener("click", () => {
+      $("#modalSolicitarTurno").showModal();
+    });
+  }
+
+  const modalClose = $("#modalSolicitarTurnoCancel");
+  if (modalClose) {
+    modalClose.addEventListener("click", () => {
+      $("#modalSolicitarTurno").close();
+    });
+  }
+
+  const form = $("#formSolicitarTurno");
+  const submitTurnoButton = form ? form.querySelector('button[type="submit"]') : null;
+  if (form) {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const odontologoId = Number($("#selectOdontologoTurno").value);
+      const tratamientoId = Number($("#selectTratamientoTurno").value);
+      const fechaHora = $("#inputFechaHoraTurno").value;
+
+      if (!odontologoId || !tratamientoId || !fechaHora) {
+        toast("Completá todos los campos para solicitar el turno.", "error");
+        return;
+      }
+
+      await ejecutarConBloqueo(submitTurnoButton, "Solicitando…", async () => {
+        try {
+          await Api.create("turnos", {
+            fechaHoraInicio: fechaHora,
+            fechaHoraFin: fechaHora,
+            pacienteId: 0,
+            odontologoId: odontologoId,
+            tratamientoId: tratamientoId
+          });
+          toast("Turno solicitado correctamente.");
+          $("#modalSolicitarTurno").close();
+          await cargarMisTurnos();
+        } catch (error) {
+          toast(error.message || "No se pudo solicitar el turno.", "error");
+        }
+      });
+    });
+  }
+
+  document.addEventListener("click", async (event) => {
+    const btnCancelar = event.target.closest(".button-cancelar-mi-turno");
+    if (btnCancelar) {
+      const turnoId = Number(btnCancelar.dataset.turnoId);
+      const confirmado = await confirmAction({
+        title: "Cancelar turno",
+        message: "¿Está seguro de que desea cancelar este turno?",
+        confirmLabel: "Cancelar",
+        tone: "danger"
+      });
+      if (!confirmado) return;
+      if (btnCancelar.dataset.enCurso === "true") return;
+      btnCancelar.dataset.enCurso = "true";
+      btnCancelar.disabled = true;
+      try {
+        await Api.patch("turnos", turnoId, "cancelar");
+        toast("Turno cancelado.");
+        await cargarMisTurnos();
+      } catch (error) {
+        toast(error.message || "No se pudo cancelar el turno.", "error");
+      } finally {
+        btnCancelar.dataset.enCurso = "false";
+        btnCancelar.disabled = false;
+      }
+    }
+  });
+}
+
+/* ---------- Navegación por hash ---------- */
 function iniciarPanel() {
-  if (!Api.accessToken || !session || !tieneAccesoPanel) {
+  if (!Api.accessToken || !tieneAccesoPanel) {
     Api.clearSession();
     window.location.replace("Login.html");
     return;
@@ -1030,6 +1356,14 @@ function iniciarPanel() {
   aplicarPermisos();
   inicializarSesion();
 
+  if (esPaciente) {
+    document.querySelectorAll(".seccion-modulo").forEach((sec) => sec.classList.add("hidden"));
+    document.getElementById("sec-turnos-paciente")?.classList.remove("hidden");
+    history.replaceState(null, "", "#turnos-paciente");
+    iniciarVistaPaciente();
+    return;
+  }
+
   const dateFilter = $("#filter-date");
   if (dateFilter) dateFilter.value = localDateKey(new Date());
 
@@ -1037,7 +1371,13 @@ function iniciarPanel() {
   const inicial = seccionesDisponibles.has(solicitada) ? solicitada : "dashboard";
   mostrarSeccion(inicial, false);
   if (solicitada && solicitada !== inicial) history.replaceState(null, "", `#${inicial}`);
-  loadAll();
+
+  if (esPaciente) {
+    iniciarVistaPaciente();
+  } else {
+    loadAll();
+    initTilt();
+  }
 }
 
 iniciarPanel();

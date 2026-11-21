@@ -47,7 +47,7 @@ public class TurnosServiceSqliteTests
                 "Odontologo Uno",
                 "MAT-1234",
                 "Odontologia General",
-                55500012));
+                "55500012"));
 
         return new TurnosService(turnos, tratamientos, pacientes, unitOfWork, null, odontologos);
     }
@@ -124,7 +124,7 @@ public class TurnosServiceSqliteTests
                 "Odontologo Uno",
                 "MAT-1234",
                 "Odontologia General",
-                55500012));
+                "55500012"));
 
         TurnosService servicio = new TurnosService(
             turnos,

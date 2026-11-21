@@ -83,19 +83,19 @@ public class TratamientoServiceTests
     }
 
     [Fact]
-    public async Task RegistrarTratamientoAsync_StockInsuficiente_LanzaExcepcionSinPersistirNiConfirmar()
+    public async Task RegistrarTratamientoAsync_StockInsuficiente_SeRegistraSinValidarStock()
     {
-        // Arrange
+        // Arrange: el alta en catálogo no valida stock; se valida solo al completar el turno.
         _mockInsumos
             .Setup(r => r.ObtenerInsumoPorId(10))
             .ReturnsAsync(new Insumo(10, "Anestesia Lidocaina", CategoriaInsumo.Anestesia, 1));
 
-        // Act & Assert
-        await Assert.ThrowsAsync<StockInsuficienteException>(
-            () => _servicio.RegistrarTratamientoAsync(CrearDto()));
+        // Act
+        await _servicio.RegistrarTratamientoAsync(CrearDto());
 
-        _mockTratamientos.Verify(r => r.AgregarTratamiento(It.IsAny<Tratamiento>()), Times.Never);
-        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+        // Assert
+        _mockTratamientos.Verify(r => r.AgregarTratamiento(It.IsAny<Tratamiento>()), Times.Once);
+        _mockUnitOfWork.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

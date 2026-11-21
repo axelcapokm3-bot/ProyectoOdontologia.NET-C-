@@ -8,7 +8,7 @@ namespace CapaWebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin,Odontologo,Recepcionista")]
+    [Authorize(Roles = "Admin,Odontologo,Recepcionista,Paciente")]
     public class TratamientoController : ControllerBase
     {
         private readonly ITratamientoService _tratamientoService;
@@ -40,7 +40,7 @@ namespace CapaWebApi.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Odontologo")]
         public async Task<IActionResult> Guardar([FromBody] TratamientoDtoInput tratamiento)
         {
             if (tratamiento == null) return BadRequest();
@@ -50,7 +50,7 @@ namespace CapaWebApi.Controllers
         }
 
         [HttpPut("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Odontologo")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] TratamientoDtoInput tratamiento)
         {
             if (tratamiento == null) return BadRequest();
@@ -60,7 +60,7 @@ namespace CapaWebApi.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Odontologo")]
         public async Task<IActionResult> Eliminar(int id)
         {
             var eliminado = await _tratamientoService.EliminarTratamientoAsync(id);

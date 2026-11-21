@@ -213,7 +213,7 @@ FROM Odontologos;";
         if (fila.UsuarioId.HasValue)
             usuarioId = checked((int)fila.UsuarioId.Value);
 
-        int telefono = checked((int)fila.Telefono);
+        string telefono = fila.Telefono ?? string.Empty;
 
         return new Odontologo(
             id,
@@ -245,5 +245,5 @@ internal sealed class OdontologoRow
     public string Nombre { get; set; } = string.Empty;
     public string Matricula { get; set; } = string.Empty;
     public string Especialidad { get; set; } = string.Empty;
-    public long Telefono { get; set; }
+    public string Telefono { get; set; } = string.Empty;
 }
