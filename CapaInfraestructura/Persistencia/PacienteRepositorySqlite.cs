@@ -114,8 +114,8 @@ ORDER BY Apellido, Nombre;";
         try
         {
             const string sql = @"
-INSERT INTO Pacientes (Id, UsuarioId, Nombre, Apellido, FechaNacimiento, Telefono, Email)
-VALUES (@Id, @UsuarioId, @Nombre, @Apellido, @FechaNacimiento, @Telefono, @Email);";
+INSERT INTO Pacientes (UsuarioId, Nombre, Apellido, FechaNacimiento, Telefono, Email)
+VALUES (@UsuarioId, @Nombre, @Apellido, @FechaNacimiento, @Telefono, @Email);";
 
             int filas = await _unitOfWork.Connection.ExecuteAsync(
                 new CommandDefinition(
@@ -124,10 +124,20 @@ VALUES (@Id, @UsuarioId, @Nombre, @Apellido, @FechaNacimiento, @Telefono, @Email
                     _unitOfWork.Transaction));
 
             if (filas != 1)
-                throw new InvalidOperationException($"No se pudo insertar el paciente con ID {paciente.Id}.");
+                throw new InvalidOperationException("No se pudo insertar el paciente.");
 
             if (transaccionPropia)
+            {
                 await _unitOfWork.CommitAsync();
+
+                const string getIdSql = @"
+SELECT last_insert_rowid();";
+
+                int generatedId = await _unitOfWork.Connection.ExecuteScalarAsync<int>(
+                    new CommandDefinition(getIdSql, transaction: _unitOfWork.Transaction));
+
+                paciente.AsignarId(generatedId);
+            }
         }
         catch
         {
@@ -199,17 +209,6 @@ WHERE Id = @Id;";
         return filas > 0;
     }
 
-    public int IdAutoIncrementoSincrono()
-    {
-        const string sql = @"
-SELECT COALESCE(MAX(Id), 0) + 1
-FROM Pacientes;";
-
-        return _unitOfWork.Connection.ExecuteScalar<int>(
-            sql,
-            transaction: _unitOfWork.Transaction);
-    }
-
     public async Task<Paciente?> ObtenerPacientePorUsuarioIdAsync(int usuarioId)
     {
         const string sql = @"
@@ -257,7 +256,6 @@ LIMIT 1;";
     {
         return new
         {
-            Id = paciente.Id,
             UsuarioId = paciente.UsuarioId,
             Nombre = paciente.Nombre,
             Apellido = paciente.Apellido,

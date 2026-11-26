@@ -5,6 +5,11 @@ namespace CapaDominio.Entidades;
 public class Paciente
 {
     public int Id { get; private set; }
+    public void AsignarId(int id)
+    {
+        if (id < 0) throw new ArgumentException("El ID debe ser un número positivo.", nameof(id));
+        Id = id;
+    }
     public int? UsuarioId { get; private set; }
     public string Nombre { get; private set; }
     public string Apellido { get; private set; }
@@ -14,7 +19,7 @@ public class Paciente
 
     public Paciente(int id, string nombre, string apellido, DateTime fechaNacimiento, string telefono, string email, int? usuarioId = null)
     {
-        if (id <= 0) throw new ArgumentException("El ID debe ser un número positivo.", nameof(id));
+        if (id < 0) throw new ArgumentException("El ID debe ser un número positivo.", nameof(id));
         if (string.IsNullOrWhiteSpace(nombre)) throw new ArgumentException("El nombre no puede estar vacío.", nameof(nombre));
         if (string.IsNullOrWhiteSpace(apellido)) throw new ArgumentException("El apellido no puede estar vacío.", nameof(apellido));
         if (fechaNacimiento > DateTime.Now) throw new ArgumentException("La fecha de nacimiento no puede ser futura.", nameof(fechaNacimiento));

@@ -45,10 +45,8 @@ public class PacienteService : IPacienteService
 
         try
         {
-            int idPaciente = _repositorioPaciente.IdAutoIncrementoSincrono();
-
             Paciente nuevoPaciente = new Paciente(
-                idPaciente,
+                0,
                 paciente.Nombre,
                 paciente.Apellido,
                 paciente.FechaNacimiento,
@@ -73,7 +71,7 @@ public class PacienteService : IPacienteService
                 int usuarioId = await CrearUsuarioPacienteAsync(paciente.NombreUsuario, paciente.Email, paciente.Password);
 
                 Paciente vinculado = new Paciente(
-                    idPaciente,
+                    nuevoPaciente.Id,
                     paciente.Nombre,
                     paciente.Apellido,
                     paciente.FechaNacimiento,

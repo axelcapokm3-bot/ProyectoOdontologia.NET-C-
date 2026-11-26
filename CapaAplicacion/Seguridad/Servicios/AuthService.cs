@@ -70,7 +70,7 @@ public class AuthService : IAuthService
 
             await _repositorioUsuario.AgregarAsync(usuario);
 
-            int idPaciente = _repositorioPaciente.IdAutoIncrementoSincrono();
+            int idPaciente = 0;
 
             Paciente paciente = new Paciente(
                 idPaciente,

@@ -8,9 +8,8 @@ public record PacienteDtoInput
     {
     }
 
-    public PacienteDtoInput(int? id, string nombre, string apellido, string email, DateTime fechaNacimiento, string telefono)
+    public PacienteDtoInput(string nombre, string apellido, string email, DateTime fechaNacimiento, string telefono)
     {
-        Id = id;
         Nombre = nombre;
         Apellido = apellido;
         Email = email;
@@ -42,6 +41,4 @@ public record PacienteDtoInput
     [Phone(ErrorMessage = "El formato del teléfono no es válido.")]
     [StringLength(20, ErrorMessage = "El teléfono no puede superar los 20 caracteres.")]
     public string Telefono { get; init; } = string.Empty;
-
-    public int? Id { get; init; } = null;
 }

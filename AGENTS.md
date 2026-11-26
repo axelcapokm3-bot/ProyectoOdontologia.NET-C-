@@ -10,7 +10,7 @@ Sistema odontológico en .NET 10 con Clean Architecture y Spec-Driven Developmen
 5. No modificar sin especificación aprobada.
 
 ## Stack
-.NET 10, ASP.NET Core Web API, JWT Bearer, BCrypt, xUnit + Moq. **Sin ORM ni base de datos** (repositorios en memoria).
+.NET 10, ASP.NET Core Web API, JWT Bearer, BCrypt, xUnit + Moq. **SQLite + Dapper** (`clinica.db`, `SqliteConnectionFactory`, `UnitOfWorkSqlite`, repositorios `*RepositorySqlite` y `DatabaseInitializer`), alineado con `docs/architecture.md` y `memory/decisions.md`.
 
 ## Reglas no negociables
 - Dominio puro: `CapaDominio` sin dependencias externas.
